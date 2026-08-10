@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>캠핑 준비 체크리스트</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<!-- Firebase (compat SDK - 플레인 HTML에서 바로 쓰기 위함) -->
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+
+<style>
+  :root{
+    --canvas:#F4EFE2;
+    --canvas-line:#E3DAC5;
+    --ink:#26301F;
+    --forest:#1F2E23;
+    --ember:#D9713C;
+    --ember-dark:#B85A2A;
+
+    --gear:#3B6E5C;      --gear-bg:#E7F0EA;
+    --kitchen:#A15C3B;   --kitchen-bg:#F5E9DF;
+    --season:#B4901F;    --season-bg:#F6EFD8;
+    --day14:#4A7FA8;     --day14-bg:#E7EFF5;
+    --day15:#3D6690;     --day15-bg:#E3ECF3;
+    --day16:#2E4E70;     --day16-bg:#E0E8EF;
+    --personal:#7A5C8A;  --personal-bg:#EFE8F2;
+    --expense:#B04A4A;   --expense-bg:#F6E4E4;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--canvas);
+    font-family:'Work Sans',sans-serif;
+    color:var(--ink);
+    -webkit-tap-highlight-color:transparent;
+  }
+  .header{
+    background:var(--forest);
+    color:#F4EFE2;
+    padding:22px 18px 26px;
+    position:relative;
+    overflow:hidden;
+  }
+  .header::after{
+    content:"";
+    position:absolute;
+    left:0; right:0; bottom:0;
+    height:6px;
+    background:repeating-linear-gradient(90deg, var(--ember) 0 14px, transparent 14px 22px);
+    opacity:0.8;
+  }
+  .header h1{
+    font-family:'Fraunces',serif;
+    font-weight:700;
+    font-size:24px;
+    margin:0 0 4px;
+    letter-spacing:0.2px;
+  }
+  .header p{ margin:0; font-size:13px; opacity:0.75; display:flex; align-items:center; gap:6px; }
+  .dot{
+    width:8px; height:8px; border-radius:50%;
+    background:#8a8477; display:inline-block; flex-shrink:0;
+  }
+  .dot.live{ background:#5BC98A; box-shadow:0 0 0 0 rgba(91,201,138,0.6); animation:pulse 1.8s infinite; }
+  @keyframes pulse{
+    0%{ box-shadow:0 0 0 0 rgba(91,201,138,0.5); }
+    70%{ box-shadow:0 0 0 6px rgba(91,201,138,0); }
+    100%{ box-shadow:0 0 0 0 rgba(91,201,138,0); }
+  }
+  .progress-wrap{ margin-top:16px; }
+  .progress-bar{ height:8px; background:rgba(255,255,255,0.18); border-radius:99px; overflow:hidden; }
+  .progress-fill{ height:100%; background:var(--ember); border-radius:99px; transition:width .3s ease; }
+  .progress-label{ font-size:12px; margin-top:6px; opacity:0.8; }
+
+  .wrap{ padding:14px 12px 40px; max-width:640px; margin:0 auto; }
+
+  .section{ margin-bottom:14px; border-radius:14px; overflow:hidden; border:1px solid var(--canvas-line); background:#fff; }
+  .section-head{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:13px 14px; cursor:pointer; user-select:none;
+    color:#fff; font-family:'Fraunces',serif; font-weight:600; font-size:16px;
+  }
+  .section-head .count{ font-family:'Work Sans',sans-serif; font-weight:500; font-size:12.5px; opacity:0.9; margin-left:8px; }
+  .chevron{ transition:transform .2s ease; font-size:13px; }
+  .section.open .chevron{ transform:rotate(180deg); }
+
+  .section-body{ display:none; padding:10px 12px 12px; }
+  .section.open .section-body{ display:block; }
+
+  .day-block{ margin-bottom:10px; }
+  .day-label{ font-size:12px; font-weight:700; padding:3px 9px; border-radius:99px; display:inline-block; margin-bottom:6px; color:#fff; }
+
+  .item-row{ display:flex; align-items:center; gap:10px; padding:9px 8px; border-radius:9px; background:var(--row-bg,#F8F6EF); }
+  .item-row + .item-row{ margin-top:6px; }
+
+  .check{
+    width:21px; height:21px; min-width:21px; border-radius:50%;
+    border:2px solid var(--dot,#999); display:flex; align-items:center; justify-content:center;
+    cursor:pointer; background:#fff; flex-shrink:0;
+  }
+  .check.checked{ background:var(--dot,#999); }
+  .check svg{ width:12px; height:12px; opacity:0; }
+  .check.checked svg{ opacity:1; }
+
+  .item-text{ flex:1; font-size:14.5px; word-break:break-word; }
+  .item-text.checked{ text-decoration:line-through; opacity:0.45; }
+
+  .amount-input{
+    width:88px; text-align:right; border:1px solid var(--canvas-line); border-radius:7px;
+    padding:5px 7px; font-size:13.5px; font-family:'Work Sans',sans-serif;
+  }
+  .amount-input:focus{ outline:2px solid var(--ember); }
+
+  .del-btn{ width:26px; height:26px; border:none; background:transparent; color:#B0A99A; font-size:17px; cursor:pointer; flex-shrink:0; }
+  .del-btn:hover{ color:var(--expense); }
+
+  .add-row{ display:flex; gap:8px; margin-top:9px; }
+  .add-row input[type=text]{
+    flex:1; border:1px solid var(--canvas-line); border-radius:9px; padding:9px 11px;
+    font-size:14px; font-family:'Work Sans',sans-serif; background:#FBFAF5;
+  }
+  .add-row input:focus{ outline:2px solid var(--ember); }
+  .add-row button{
+    border:none; background:var(--ember); color:#fff; border-radius:9px; padding:0 16px;
+    font-size:14px; font-weight:600; cursor:pointer; white-space:nowrap;
+  }
+  .add-row button:active{ background:var(--ember-dark); }
+
+  .empty-hint{ font-size:13px; color:#B0A99A; padding:8px 4px; }
+
+  .expense-total{
+    display:flex; justify-content:space-between; align-items:baseline;
+    padding:10px 4px 4px; border-top:1px dashed var(--canvas-line); margin-top:8px; font-family:'Fraunces',serif;
+  }
+  .expense-total .label{ font-size:13px; color:#8a8477; }
+  .expense-total .value{ font-size:19px; font-weight:700; color:var(--expense); }
+
+  .sync-note{ text-align:center; font-size:11.5px; color:#9c9584; margin-top:10px; padding-bottom:4px; line-height:1.5; }
+
+  .loading-screen{
+    position:fixed; inset:0; background:var(--canvas);
+    display:flex; align-items:center; justify-content:center; flex-direction:column; gap:10px;
+    font-family:'Fraunces',serif; color:var(--forest); z-index:99;
+  }
+  .loading-screen.hide{ display:none; }
+</style>
+</head>
+<body>
+
+<div class="loading-screen" id="loadingScreen">
+  <div>🏕️</div>
+  <div>연결 중...</div>
+</div>
+
+<div class="header">
+  <h1>🏕️ 캠핑 준비 체크리스트</h1>
+  <p><span class="dot" id="liveDot"></span><span id="liveLabel">연결 중...</span></p>
+  <div class="progress-wrap">
+    <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+    <div class="progress-label" id="progressLabel">0 / 0 완료 (0%)</div>
+  </div>
+</div>
+
+<div class="wrap" id="sections"></div>
+
+<script>
+/* ====== Firebase 설정 ====== */
+const firebaseConfig = {
+  apiKey: "AIzaSyA9uHi1Myi1ubA2PFwbq--4KcHvjHg1IhM",
+  authDomain: "camping-checklist-fd1b0.firebaseapp.com",
+  projectId: "camping-checklist-fd1b0",
+  storageBucket: "camping-checklist-fd1b0.firebasestorage.app",
+  messagingSenderId: "493498746527",
+  appId: "1:493498746527:web:528b73c2c51b5aa16b84aa"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+const DOC_REF = db.collection('camping').doc('shared-checklist');
+
+/* ====== 체크리스트 데이터/로직 ====== */
+const CATEGORIES = [
+  { key:'gear',     title:'⛺ 캠핑용품', color:'var(--gear)',     bg:'var(--gear-bg)',     type:'simple' },
+  { key:'kitchen',  title:'🍳 주방기물', color:'var(--kitchen)',  bg:'var(--kitchen-bg)',  type:'simple' },
+  { key:'season',   title:'🧂 양념류',   color:'var(--season)',   bg:'var(--season-bg)',   type:'simple' },
+  { key:'food',     title:'🥩 식재료',   color:'#4A7FA8',         bg:'#E7EFF5',            type:'days' },
+  { key:'personal', title:'🎒 개인물품', color:'var(--personal)', bg:'var(--personal-bg)', type:'simple' },
+  { key:'expense',  title:'💰 지출',     color:'var(--expense)',  bg:'var(--expense-bg)',  type:'expense' },
+];
+const DAYS = [
+  { key:'d14', label:'14일', color:'var(--day14)', bg:'var(--day14-bg)' },
+  { key:'d15', label:'15일', color:'var(--day15)', bg:'var(--day15-bg)' },
+  { key:'d16', label:'16일', color:'var(--day16)', bg:'var(--day16-bg)' },
+];
+
+let state = null;
+let openSections = new Set(['gear']);
+let suppressNextSnapshot = false;
+const $sections = document.getElementById('sections');
+
+function defaultState(){
+  return {
+    gear: [
+      {id:uid(), text:'텐트', checked:false},
+      {id:uid(), text:'침낭', checked:false},
+      {id:uid(), text:'랜턴', checked:false},
+    ],
+    kitchen: [
+      {id:uid(), text:'버너', checked:false},
+      {id:uid(), text:'코펠', checked:false},
+    ],
+    season: [ {id:uid(), text:'소금/후추', checked:false} ],
+    food: {
+      d14: [{id:uid(), text:'삼겹살', checked:false}],
+      d15: [{id:uid(), text:'라면', checked:false}],
+      d16: [{id:uid(), text:'과일', checked:false}],
+    },
+    personal: [ {id:uid(), text:'세면도구', checked:false} ],
+    expense: []
+  };
+}
+
+function uid(){ return Math.random().toString(36).slice(2,9); }
+
+/* ====== Firestore 연결 ====== */
+auth.signInAnonymously().catch(err=>{
+  document.getElementById('liveLabel').textContent = '연결 실패 - 새로고침 해주세요';
+  console.error(err);
+});
+
+auth.onAuthStateChanged(user=>{
+  if(!user) return;
+
+  DOC_REF.onSnapshot(async (snap)=>{
+    document.getElementById('loadingScreen').classList.add('hide');
+    document.getElementById('liveDot').classList.add('live');
+    document.getElementById('liveLabel').textContent = '실시간 연결됨 - 다같이 체크 중';
+
+    if(suppressNextSnapshot){
+      suppressNextSnapshot = false;
+      return;
+    }
+
+    if(snap.exists){
+      state = snap.data().payload;
+    } else {
+      state = defaultState();
+      await DOC_REF.set({ payload: state, updatedAt: Date.now() });
+    }
+    render();
+  }, (err)=>{
+    console.error(err);
+    document.getElementById('liveLabel').textContent = '연결 오류 - 새로고침 해주세요';
+  });
+});
+
+async function saveState(){
+  suppressNextSnapshot = true;
+  try{
+    await DOC_REF.set({ payload: state, updatedAt: Date.now() });
+  }catch(e){
+    console.error('저장 실패', e);
+    suppressNextSnapshot = false;
+  }
+}
+
+/* ====== UI 동작 ====== */
+function toggleSection(key){
+  if(openSections.has(key)) openSections.delete(key);
+  else openSections.add(key);
+  render();
+}
+
+function addItem(catKey, dayKey){
+  const inputId = dayKey ? `add-${catKey}-${dayKey}` : `add-${catKey}`;
+  const input = document.getElementById(inputId);
+  const text = input.value.trim();
+  if(!text) return;
+  const item = { id: uid(), text, checked:false };
+  if(catKey === 'expense') item.amount = 0;
+  if(catKey === 'food'){ state.food[dayKey].push(item); } else { state[catKey].push(item); }
+  input.value = '';
+  saveState();
+  render();
+  setTimeout(()=>document.getElementById(inputId)?.focus(), 30);
+}
+
+function toggleItem(catKey, dayKey, id){
+  const list = catKey === 'food' ? state.food[dayKey] : state[catKey];
+  const it = list.find(i=>i.id===id);
+  if(it) it.checked = !it.checked;
+  saveState();
+  render();
+}
+
+function deleteItem(catKey, dayKey, id){
+  if(catKey === 'food'){ state.food[dayKey] = state.food[dayKey].filter(i=>i.id!==id); }
+  else { state[catKey] = state[catKey].filter(i=>i.id!==id); }
+  saveState();
+  render();
+}
+
+function updateAmount(id, value){
+  const it = state.expense.find(i=>i.id===id);
+  if(it) it.amount = Number(value) || 0;
+  saveState();
+}
+
+function counts(){
+  let total=0, done=0;
+  CATEGORIES.forEach(c=>{
+    if(c.type==='days'){ DAYS.forEach(d=>{ state.food[d.key].forEach(i=>{ total++; if(i.checked) done++; }); }); }
+    else if(c.type==='expense'){ state.expense.forEach(i=>{ total++; if(i.checked) done++; }); }
+    else { state[c.key].forEach(i=>{ total++; if(i.checked) done++; }); }
+  });
+  return {total, done};
+}
+
+function itemRowHTML(catKey, dayKey, item, color, bg){
+  const checkedClass = item.checked ? 'checked' : '';
+  const amountField = catKey === 'expense'
+    ? `<input class="amount-input" type="number" inputmode="numeric" placeholder="금액" value="${item.amount||''}"
+        onchange="updateAmount('${item.id}', this.value)">`
+    : '';
+  return `
+    <div class="item-row" style="--row-bg:${bg}">
+      <div class="check ${checkedClass}" style="--dot:${color}"
+        onclick="toggleItem('${catKey}', ${dayKey?`'${dayKey}'`:null}, '${item.id}')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="20 6 9 17 4 12"></polyline>
+        </svg>
+      </div>
+      <div class="item-text ${checkedClass}">${escapeHTML(item.text)}</div>
+      ${amountField}
+      <button class="del-btn" onclick="deleteItem('${catKey}', ${dayKey?`'${dayKey}'`:null}, '${item.id}')">✕</button>
+    </div>`;
+}
+
+function escapeHTML(str){
+  const d = document.createElement('div');
+  d.innerText = str;
+  return d.innerHTML;
+}
+
+function addRowHTML(catKey, dayKey, color){
+  const inputId = dayKey ? `add-${catKey}-${dayKey}` : `add-${catKey}`;
+  return `
+    <div class="add-row">
+      <input type="text" id="${inputId}" placeholder="항목 추가..."
+        onkeydown="if(event.key==='Enter') addItem('${catKey}', ${dayKey?`'${dayKey}'`:null})">
+      <button style="background:${color}" onclick="addItem('${catKey}', ${dayKey?`'${dayKey}'`:null})">추가</button>
+    </div>`;
+}
+
+function render(){
+  if(!state) return;
+  const c = counts();
+  const pct = c.total ? Math.round((c.done/c.total)*100) : 0;
+  document.getElementById('progressFill').style.width = pct+'%';
+  document.getElementById('progressLabel').textContent = `${c.done} / ${c.total} 완료 (${pct}%)`;
+
+  $sections.innerHTML = CATEGORIES.map(cat=>{
+    const isOpen = openSections.has(cat.key);
+
+    if(cat.type === 'days'){
+      const dayCount = DAYS.reduce((s,d)=>s+state.food[d.key].length,0);
+      const dayDone = DAYS.reduce((s,d)=>s+state.food[d.key].filter(i=>i.checked).length,0);
+      const body = DAYS.map(d=>{
+        const items = state.food[d.key];
+        return `
+          <div class="day-block">
+            <span class="day-label" style="background:${d.color}">${d.label}</span>
+            ${items.length ? items.map(i=>itemRowHTML('food', d.key, i, d.color, d.bg)).join('') : `<div class="empty-hint">아직 항목이 없어요</div>`}
+            ${addRowHTML('food', d.key, d.color)}
+          </div>`;
+      }).join('');
+      return `
+        <div class="section ${isOpen?'open':''}">
+          <div class="section-head" style="background:${cat.color}" onclick="toggleSection('${cat.key}')">
+            <span>${cat.title} <span class="count">${dayDone}/${dayCount}</span></span>
+            <span class="chevron">▾</span>
+          </div>
+          <div class="section-body">${body}</div>
+        </div>`;
+    }
+
+    if(cat.type === 'expense'){
+      const items = state.expense;
+      const total = items.reduce((s,i)=>s+(Number(i.amount)||0),0);
+      const body = `
+        ${items.length ? items.map(i=>itemRowHTML('expense', null, i, cat.color, cat.bg)).join('') : `<div class="empty-hint">아직 지출 내역이 없어요</div>`}
+        ${addRowHTML('expense', null, cat.color)}
+        <div class="expense-total">
+          <span class="label">총 지출</span>
+          <span class="value">${total.toLocaleString()}원</span>
+        </div>`;
+      return `
+        <div class="section ${isOpen?'open':''}">
+          <div class="section-head" style="background:${cat.color}" onclick="toggleSection('${cat.key}')">
+            <span>${cat.title} <span class="count">${items.length}건</span></span>
+            <span class="chevron">▾</span>
+          </div>
+          <div class="section-body">${body}</div>
+        </div>`;
+    }
+
+    const items = state[cat.key];
+    const done = items.filter(i=>i.checked).length;
+    const body = `
+      ${items.length ? items.map(i=>itemRowHTML(cat.key, null, i, cat.color, cat.bg)).join('') : `<div class="empty-hint">아직 항목이 없어요</div>`}
+      ${addRowHTML(cat.key, null, cat.color)}`;
+    return `
+      <div class="section ${isOpen?'open':''}">
+        <div class="section-head" style="background:${cat.color}" onclick="toggleSection('${cat.key}')">
+          <span>${cat.title} <span class="count">${done}/${items.length}</span></span>
+          <span class="chevron">▾</span>
+        </div>
+        <div class="section-body">${body}</div>
+      </div>`;
+  }).join('') + `<div class="sync-note">💡 여기서 체크하면 링크를 연 모든 사람 화면에 실시간으로 반영돼요</div>`;
+}
+</script>
+</body>
+</html>
