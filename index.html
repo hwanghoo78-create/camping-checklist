@@ -7,7 +7,6 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-<!-- Firebase (compat SDK - 플레인 HTML에서 바로 쓰기 위함) -->
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
@@ -20,15 +19,8 @@
     --forest:#1F2E23;
     --ember:#D9713C;
     --ember-dark:#B85A2A;
-
-    --gear:#3B6E5C;      --gear-bg:#E7F0EA;
-    --kitchen:#A15C3B;   --kitchen-bg:#F5E9DF;
-    --season:#B4901F;    --season-bg:#F6EFD8;
-    --day14:#4A7FA8;     --day14-bg:#E7EFF5;
-    --day15:#3D6690;     --day15-bg:#E3ECF3;
-    --day16:#2E4E70;     --day16-bg:#E0E8EF;
-    --personal:#7A5C8A;  --personal-bg:#EFE8F2;
-    --expense:#B04A4A;   --expense-bg:#F6E4E4;
+    --income:#2E7D53; --income-bg:#E3F1E8;
+    --expense-c:#B04A4A; --expense-bg-c:#F6E4E4;
   }
   *{box-sizing:border-box;}
   body{
@@ -41,7 +33,7 @@
   .header{
     background:var(--forest);
     color:#F4EFE2;
-    padding:22px 18px 26px;
+    padding:22px 18px 16px;
     position:relative;
     overflow:hidden;
   }
@@ -56,40 +48,53 @@
   .header h1{
     font-family:'Fraunces',serif;
     font-weight:700;
-    font-size:24px;
+    font-size:22px;
     margin:0 0 4px;
     letter-spacing:0.2px;
   }
-  .header p{ margin:0; font-size:13px; opacity:0.75; display:flex; align-items:center; gap:6px; }
-  .dot{
-    width:8px; height:8px; border-radius:50%;
-    background:#8a8477; display:inline-block; flex-shrink:0;
-  }
+  .header p{ margin:0; font-size:12.5px; opacity:0.75; display:flex; align-items:center; gap:6px; }
+  .dot{ width:8px; height:8px; border-radius:50%; background:#8a8477; display:inline-block; flex-shrink:0; }
   .dot.live{ background:#5BC98A; box-shadow:0 0 0 0 rgba(91,201,138,0.6); animation:pulse 1.8s infinite; }
   @keyframes pulse{
     0%{ box-shadow:0 0 0 0 rgba(91,201,138,0.5); }
     70%{ box-shadow:0 0 0 6px rgba(91,201,138,0); }
     100%{ box-shadow:0 0 0 0 rgba(91,201,138,0); }
   }
-  .progress-wrap{ margin-top:16px; }
+  .progress-wrap{ margin-top:14px; }
   .progress-bar{ height:8px; background:rgba(255,255,255,0.18); border-radius:99px; overflow:hidden; }
   .progress-fill{ height:100%; background:var(--ember); border-radius:99px; transition:width .3s ease; }
-  .progress-label{ font-size:12px; margin-top:6px; opacity:0.8; }
+  .progress-label{ font-size:11.5px; margin-top:6px; opacity:0.8; }
+
+  .tab-bar{
+    display:flex; gap:8px; overflow-x:auto; padding:12px 12px 4px;
+    -webkit-overflow-scrolling:touch; background:var(--forest);
+  }
+  .tab-bar::-webkit-scrollbar{ display:none; }
+  .tab{
+    flex:0 0 auto; padding:9px 14px; border-radius:999px;
+    font-family:'Fraunces',serif; font-weight:600; font-size:13px;
+    color:#fff; opacity:0.5; cursor:pointer; white-space:nowrap;
+    display:flex; align-items:center; gap:6px; transition:opacity .15s;
+  }
+  .tab.active{ opacity:1; box-shadow:0 2px 8px rgba(0,0,0,0.2); }
+  .tab .tab-count{ font-family:'Work Sans',sans-serif; font-weight:500; font-size:10.5px; opacity:0.85; }
+  .tab-add{
+    background:transparent !important; color:#F4EFE2 !important; opacity:0.85 !important;
+    border:1.5px dashed rgba(244,239,226,0.5);
+  }
 
   .wrap{ padding:14px 12px 40px; max-width:640px; margin:0 auto; }
 
-  .section{ margin-bottom:14px; border-radius:14px; overflow:hidden; border:1px solid var(--canvas-line); background:#fff; }
-  .section-head{
-    display:flex; align-items:center; justify-content:space-between;
-    padding:13px 14px; cursor:pointer; user-select:none;
-    color:#fff; font-family:'Fraunces',serif; font-weight:600; font-size:16px;
+  .cat-panel{ border-radius:14px; border:1px solid var(--canvas-line); background:#fff; overflow:hidden; }
+  .cat-panel-head{ display:flex; align-items:center; justify-content:space-between; padding:14px; color:#fff; gap:10px; }
+  .cat-panel-head .name-block{ font-family:'Fraunces',serif; font-weight:700; font-size:18px; flex:1; min-width:0; word-break:break-word; }
+  .head-icons{ display:flex; gap:6px; flex-shrink:0; }
+  .icon-btn{
+    background:rgba(255,255,255,0.22); border:none; color:#fff;
+    width:30px; height:30px; border-radius:9px; font-size:14px; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
   }
-  .section-head .count{ font-family:'Work Sans',sans-serif; font-weight:500; font-size:12.5px; opacity:0.9; margin-left:8px; }
-  .chevron{ transition:transform .2s ease; font-size:13px; }
-  .section.open .chevron{ transform:rotate(180deg); }
-
-  .section-body{ display:none; padding:10px 12px 12px; }
-  .section.open .section-body{ display:block; }
+  .cat-panel-body{ padding:12px; }
 
   .day-block{ margin-bottom:10px; }
   .day-label{ font-size:12px; font-weight:700; padding:3px 9px; border-radius:99px; display:inline-block; margin-bottom:6px; color:#fff; }
@@ -106,8 +111,12 @@
   .check svg{ width:12px; height:12px; opacity:0; }
   .check.checked svg{ opacity:1; }
 
-  .item-text{ flex:1; font-size:14.5px; word-break:break-word; }
+  .item-text{ flex:1; font-size:14.5px; word-break:break-word; cursor:text; padding:2px 0; }
   .item-text.checked{ text-decoration:line-through; opacity:0.45; }
+  .item-edit-input{
+    flex:1; border:1px solid var(--ember); border-radius:7px; padding:6px 8px;
+    font-size:14.5px; font-family:'Work Sans',sans-serif; background:#fff;
+  }
 
   .amount-input{
     width:88px; text-align:right; border:1px solid var(--canvas-line); border-radius:7px;
@@ -116,7 +125,7 @@
   .amount-input:focus{ outline:2px solid var(--ember); }
 
   .del-btn{ width:26px; height:26px; border:none; background:transparent; color:#B0A99A; font-size:17px; cursor:pointer; flex-shrink:0; }
-  .del-btn:hover{ color:var(--expense); }
+  .del-btn:hover{ color:var(--expense-c); }
 
   .add-row{ display:flex; gap:8px; margin-top:9px; }
   .add-row input[type=text]{
@@ -131,13 +140,37 @@
   .add-row button:active{ background:var(--ember-dark); }
 
   .empty-hint{ font-size:13px; color:#B0A99A; padding:8px 4px; }
+  .empty-state{ text-align:center; padding:40px 20px; color:#9c9584; font-family:'Fraunces',serif; }
 
-  .expense-total{
-    display:flex; justify-content:space-between; align-items:baseline;
-    padding:10px 4px 4px; border-top:1px dashed var(--canvas-line); margin-top:8px; font-family:'Fraunces',serif;
+  .finance-toggle{ display:flex; border:1px solid var(--canvas-line); border-radius:9px; overflow:hidden; margin-bottom:8px; }
+  .finance-toggle button{
+    flex:1; padding:9px 0; border:none; background:#FBFAF5; font-size:13px; font-weight:700; cursor:pointer;
+    color:#8a8477; font-family:'Work Sans',sans-serif;
   }
-  .expense-total .label{ font-size:13px; color:#8a8477; }
-  .expense-total .value{ font-size:19px; font-weight:700; color:var(--expense); }
+  .finance-toggle button.sel-income{ background:var(--income-bg); color:var(--income); }
+  .finance-toggle button.sel-expense{ background:var(--expense-bg-c); color:var(--expense-c); }
+
+  .finance-summary{ display:flex; gap:8px; margin-top:10px; }
+  .sum-box{ flex:1; border-radius:10px; padding:10px; text-align:center; }
+  .sum-box .l{ font-size:11.5px; color:#8a8477; margin-bottom:2px; }
+  .sum-box .v{ font-size:15px; font-weight:700; font-family:'Fraunces',serif; }
+  .sum-box.income-box{ background:var(--income-bg); }
+  .sum-box.income-box .v{ color:var(--income); }
+  .sum-box.expense-box{ background:var(--expense-bg-c); }
+  .sum-box.expense-box .v{ color:var(--expense-c); }
+
+  .balance-box{
+    margin-top:8px; padding:13px; border-radius:10px; background:#26301F0d;
+    display:flex; justify-content:space-between; align-items:baseline; border:1px dashed var(--canvas-line);
+  }
+  .balance-box .label{ font-size:12.5px; color:#8a8477; }
+  .balance-box .value{ font-size:19px; font-weight:700; font-family:'Fraunces',serif; }
+  .balance-box .value.positive{ color:var(--income); }
+  .balance-box .value.negative{ color:var(--expense-c); }
+
+  .type-badge{ font-size:10.5px; font-weight:700; padding:2px 7px; border-radius:99px; flex-shrink:0; }
+  .type-badge.income{ background:var(--income); color:#fff; }
+  .type-badge.expense{ background:var(--expense-c); color:#fff; }
 
   .sync-note{ text-align:center; font-size:11.5px; color:#9c9584; margin-top:10px; padding-bottom:4px; line-height:1.5; }
 
@@ -165,10 +198,11 @@
   </div>
 </div>
 
-<div class="wrap" id="sections"></div>
+<div class="tab-bar" id="tabBar"></div>
+<div class="wrap" id="panelWrap"></div>
 
 <script>
-/* ====== Firebase 설정 ====== */
+/* ====== Firebase ====== */
 const firebaseConfig = {
   apiKey: "AIzaSyA9uHi1Myi1ubA2PFwbq--4KcHvjHg1IhM",
   authDomain: "camping-checklist-fd1b0.firebaseapp.com",
@@ -180,53 +214,47 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
-const DOC_REF = db.collection('camping').doc('shared-checklist');
+const DOC_REF = db.collection('camping').doc('shared-checklist-v2');
 
-/* ====== 체크리스트 데이터/로직 ====== */
-const CATEGORIES = [
-  { key:'gear',     title:'⛺ 캠핑용품', color:'var(--gear)',     bg:'var(--gear-bg)',     type:'simple' },
-  { key:'kitchen',  title:'🍳 주방기물', color:'var(--kitchen)',  bg:'var(--kitchen-bg)',  type:'simple' },
-  { key:'season',   title:'🧂 양념류',   color:'var(--season)',   bg:'var(--season-bg)',   type:'simple' },
-  { key:'food',     title:'🥩 식재료',   color:'#4A7FA8',         bg:'#E7EFF5',            type:'days' },
-  { key:'personal', title:'🎒 개인물품', color:'var(--personal)', bg:'var(--personal-bg)', type:'simple' },
-  { key:'expense',  title:'💰 지출',     color:'var(--expense)',  bg:'var(--expense-bg)',  type:'expense' },
+const PALETTE = [
+  {color:'#3B6E5C', bg:'#E7F0EA'}, {color:'#A15C3B', bg:'#F5E9DF'},
+  {color:'#B4901F', bg:'#F6EFD8'}, {color:'#4A7FA8', bg:'#E7EFF5'},
+  {color:'#7A5C8A', bg:'#EFE8F2'}, {color:'#2E7D6B', bg:'#E3F1EC'},
+  {color:'#7D5A29', bg:'#F1E7D5'}, {color:'#5B6E8C', bg:'#E7EBF3'},
+  {color:'#8C4B6B', bg:'#F3E4EC'}, {color:'#4A7050', bg:'#E6F0E8'},
 ];
 const DAYS = [
-  { key:'d14', label:'14일', color:'var(--day14)', bg:'var(--day14-bg)' },
-  { key:'d15', label:'15일', color:'var(--day15)', bg:'var(--day15-bg)' },
-  { key:'d16', label:'16일', color:'var(--day16)', bg:'var(--day16-bg)' },
+  { key:'d14', label:'14일', color:'#4A7FA8', bg:'#E7EFF5' },
+  { key:'d15', label:'15일', color:'#3D6690', bg:'#E3ECF3' },
+  { key:'d16', label:'16일', color:'#2E4E70', bg:'#E0E8EF' },
 ];
 
 let state = null;
-let openSections = new Set(['gear']);
+let selectedId = null;
+let editing = null;
+let addFinanceType = 'expense';
 let suppressNextSnapshot = false;
-const $sections = document.getElementById('sections');
-
-function defaultState(){
-  return {
-    gear: [
-      {id:uid(), text:'텐트', checked:false},
-      {id:uid(), text:'침낭', checked:false},
-      {id:uid(), text:'랜턴', checked:false},
-    ],
-    kitchen: [
-      {id:uid(), text:'버너', checked:false},
-      {id:uid(), text:'코펠', checked:false},
-    ],
-    season: [ {id:uid(), text:'소금/후추', checked:false} ],
-    food: {
-      d14: [{id:uid(), text:'삼겹살', checked:false}],
-      d15: [{id:uid(), text:'라면', checked:false}],
-      d16: [{id:uid(), text:'과일', checked:false}],
-    },
-    personal: [ {id:uid(), text:'세면도구', checked:false} ],
-    expense: []
-  };
-}
 
 function uid(){ return Math.random().toString(36).slice(2,9); }
 
-/* ====== Firestore 연결 ====== */
+function defaultState(){
+  return {
+    categories: [
+      { id:'gear', name:'⛺ 캠핑용품', color:PALETTE[0].color, bg:PALETTE[0].bg, type:'simple',
+        items:[ {id:uid(),text:'텐트',checked:false}, {id:uid(),text:'침낭',checked:false}, {id:uid(),text:'랜턴',checked:false} ] },
+      { id:'kitchen', name:'🍳 주방기물', color:PALETTE[1].color, bg:PALETTE[1].bg, type:'simple',
+        items:[ {id:uid(),text:'버너',checked:false}, {id:uid(),text:'코펠',checked:false} ] },
+      { id:'season', name:'🧂 양념류', color:PALETTE[2].color, bg:PALETTE[2].bg, type:'simple',
+        items:[ {id:uid(),text:'소금/후추',checked:false} ] },
+      { id:'food', name:'🥩 식재료', color:PALETTE[3].color, bg:PALETTE[3].bg, type:'food',
+        days:{ d14:[{id:uid(),text:'삼겹살',checked:false}], d15:[{id:uid(),text:'라면',checked:false}], d16:[{id:uid(),text:'과일',checked:false}] } },
+      { id:'personal', name:'🎒 개인물품', color:PALETTE[4].color, bg:PALETTE[4].bg, type:'simple',
+        items:[ {id:uid(),text:'세면도구',checked:false} ] },
+      { id:'finance', name:'💰 수입/지출', color:PALETTE[5].color, bg:PALETTE[5].bg, type:'finance', items:[] },
+    ]
+  };
+}
+
 auth.signInAnonymously().catch(err=>{
   document.getElementById('liveLabel').textContent = '연결 실패 - 새로고침 해주세요';
   console.error(err);
@@ -234,16 +262,12 @@ auth.signInAnonymously().catch(err=>{
 
 auth.onAuthStateChanged(user=>{
   if(!user) return;
-
   DOC_REF.onSnapshot(async (snap)=>{
     document.getElementById('loadingScreen').classList.add('hide');
     document.getElementById('liveDot').classList.add('live');
     document.getElementById('liveLabel').textContent = '실시간 연결됨 - 다같이 체크 중';
 
-    if(suppressNextSnapshot){
-      suppressNextSnapshot = false;
-      return;
-    }
+    if(suppressNextSnapshot){ suppressNextSnapshot = false; return; }
 
     if(snap.exists){
       state = snap.data().payload;
@@ -251,6 +275,8 @@ auth.onAuthStateChanged(user=>{
       state = defaultState();
       await DOC_REF.set({ payload: state, updatedAt: Date.now() });
     }
+    if(!selectedId && state.categories.length) selectedId = state.categories[0].id;
+    editing = null;
     render();
   }, (err)=>{
     console.error(err);
@@ -260,84 +286,139 @@ auth.onAuthStateChanged(user=>{
 
 async function saveState(){
   suppressNextSnapshot = true;
-  try{
-    await DOC_REF.set({ payload: state, updatedAt: Date.now() });
-  }catch(e){
-    console.error('저장 실패', e);
-    suppressNextSnapshot = false;
-  }
+  try{ await DOC_REF.set({ payload: state, updatedAt: Date.now() }); }
+  catch(e){ console.error('저장 실패', e); suppressNextSnapshot = false; }
 }
 
-/* ====== UI 동작 ====== */
-function toggleSection(key){
-  if(openSections.has(key)) openSections.delete(key);
-  else openSections.add(key);
+function selectTab(id){ selectedId = id; editing = null; render(); }
+
+function addCategory(){
+  const name = prompt('새 카테고리 이름을 입력하세요 (예: 놀이용품)');
+  if(!name || !name.trim()) return;
+  const palette = PALETTE[state.categories.length % PALETTE.length];
+  const cat = { id:uid(), name:name.trim(), color:palette.color, bg:palette.bg, type:'simple', items:[] };
+  state.categories.push(cat);
+  selectedId = cat.id;
+  saveState();
   render();
 }
 
-function addItem(catKey, dayKey){
-  const inputId = dayKey ? `add-${catKey}-${dayKey}` : `add-${catKey}`;
+function renameCategory(catId){
+  const cat = state.categories.find(c=>c.id===catId);
+  if(!cat) return;
+  const name = prompt('카테고리 이름 수정', cat.name);
+  if(name === null) return;
+  if(!name.trim()) return;
+  cat.name = name.trim();
+  saveState();
+  render();
+}
+
+function deleteCategory(catId){
+  const cat = state.categories.find(c=>c.id===catId);
+  if(!cat) return;
+  if(!confirm(`"${cat.name}" 카테고리를 삭제할까요? 안의 항목도 모두 사라져요.`)) return;
+  state.categories = state.categories.filter(c=>c.id!==catId);
+  if(selectedId === catId){
+    selectedId = state.categories.length ? state.categories[0].id : null;
+  }
+  saveState();
+  render();
+}
+
+function getCat(catId){ return state.categories.find(c=>c.id===catId); }
+function getList(catId, dayKey){
+  const cat = getCat(catId);
+  if(cat.type === 'food') return cat.days[dayKey];
+  return cat.items;
+}
+
+function addItem(catId, dayKey){
+  const inputId = dayKey ? `add-${catId}-${dayKey}` : `add-${catId}`;
   const input = document.getElementById(inputId);
   const text = input.value.trim();
   if(!text) return;
+  const cat = getCat(catId);
   const item = { id: uid(), text, checked:false };
-  if(catKey === 'expense') item.amount = 0;
-  if(catKey === 'food'){ state.food[dayKey].push(item); } else { state[catKey].push(item); }
+  if(cat.type === 'finance'){
+    item.amount = 0;
+    item.type = addFinanceType;
+  }
+  getList(catId, dayKey).push(item);
   input.value = '';
   saveState();
   render();
   setTimeout(()=>document.getElementById(inputId)?.focus(), 30);
 }
 
-function toggleItem(catKey, dayKey, id){
-  const list = catKey === 'food' ? state.food[dayKey] : state[catKey];
+function toggleItem(catId, dayKey, id){
+  const list = getList(catId, dayKey);
   const it = list.find(i=>i.id===id);
   if(it) it.checked = !it.checked;
   saveState();
   render();
 }
 
-function deleteItem(catKey, dayKey, id){
-  if(catKey === 'food'){ state.food[dayKey] = state.food[dayKey].filter(i=>i.id!==id); }
-  else { state[catKey] = state[catKey].filter(i=>i.id!==id); }
+function deleteItem(catId, dayKey, id){
+  const cat = getCat(catId);
+  if(cat.type === 'food'){
+    cat.days[dayKey] = cat.days[dayKey].filter(i=>i.id!==id);
+  } else {
+    cat.items = cat.items.filter(i=>i.id!==id);
+  }
   saveState();
   render();
 }
 
-function updateAmount(id, value){
-  const it = state.expense.find(i=>i.id===id);
+function updateAmount(catId, id, value){
+  const cat = getCat(catId);
+  const it = cat.items.find(i=>i.id===id);
   if(it) it.amount = Number(value) || 0;
   saveState();
 }
 
-function counts(){
-  let total=0, done=0;
-  CATEGORIES.forEach(c=>{
-    if(c.type==='days'){ DAYS.forEach(d=>{ state.food[d.key].forEach(i=>{ total++; if(i.checked) done++; }); }); }
-    else if(c.type==='expense'){ state.expense.forEach(i=>{ total++; if(i.checked) done++; }); }
-    else { state[c.key].forEach(i=>{ total++; if(i.checked) done++; }); }
-  });
+function startEdit(catId, dayKey, itemId){
+  editing = { catId, dayKey, itemId };
+  render();
+  setTimeout(()=>{
+    const el = document.getElementById('edit-input');
+    if(el){ el.focus(); el.select(); }
+  }, 20);
+}
+
+function commitEdit(catId, dayKey, itemId, value){
+  const list = getList(catId, dayKey);
+  const it = list.find(i=>i.id===itemId);
+  const trimmed = value.trim();
+  if(it && trimmed) it.text = trimmed;
+  editing = null;
+  saveState();
+  render();
+}
+
+function cancelEdit(){ editing = null; render(); }
+
+function setFinanceType(type){ addFinanceType = type; render(); }
+
+function catCounts(cat){
+  if(cat.type === 'food'){
+    let total=0, done=0;
+    DAYS.forEach(d=>{ cat.days[d.key].forEach(i=>{ total++; if(i.checked) done++; }); });
+    return {total, done};
+  }
+  const total = cat.items.length;
+  const done = cat.items.filter(i=>i.checked).length;
   return {total, done};
 }
 
-function itemRowHTML(catKey, dayKey, item, color, bg){
-  const checkedClass = item.checked ? 'checked' : '';
-  const amountField = catKey === 'expense'
-    ? `<input class="amount-input" type="number" inputmode="numeric" placeholder="금액" value="${item.amount||''}"
-        onchange="updateAmount('${item.id}', this.value)">`
-    : '';
-  return `
-    <div class="item-row" style="--row-bg:${bg}">
-      <div class="check ${checkedClass}" style="--dot:${color}"
-        onclick="toggleItem('${catKey}', ${dayKey?`'${dayKey}'`:null}, '${item.id}')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="20 6 9 17 4 12"></polyline>
-        </svg>
-      </div>
-      <div class="item-text ${checkedClass}">${escapeHTML(item.text)}</div>
-      ${amountField}
-      <button class="del-btn" onclick="deleteItem('${catKey}', ${dayKey?`'${dayKey}'`:null}, '${item.id}')">✕</button>
-    </div>`;
+function overallCounts(){
+  let total=0, done=0;
+  state.categories.forEach(cat=>{
+    if(cat.type === 'finance') return;
+    const c = catCounts(cat);
+    total += c.total; done += c.done;
+  });
+  return {total, done};
 }
 
 function escapeHTML(str){
@@ -346,82 +427,147 @@ function escapeHTML(str){
   return d.innerHTML;
 }
 
-function addRowHTML(catKey, dayKey, color){
-  const inputId = dayKey ? `add-${catKey}-${dayKey}` : `add-${catKey}`;
+function itemRowHTML(catId, dayKey, item, color, bg, financeType){
+  const isEditing = editing && editing.catId===catId && editing.dayKey===dayKey && editing.itemId===item.id;
+  const checkedClass = item.checked ? 'checked' : '';
+  const dotColor = financeType === 'income' ? 'var(--income)' : financeType === 'expense' ? 'var(--expense-c)' : color;
+  const rowBg = financeType === 'income' ? 'var(--income-bg)' : financeType === 'expense' ? 'var(--expense-bg-c)' : bg;
+
+  const textPart = isEditing
+    ? `<input id="edit-input" class="item-edit-input" value="${escapeHTML(item.text)}"
+        onkeydown="if(event.key==='Enter'){this.blur();} if(event.key==='Escape'){cancelEdit();}"
+        onblur="commitEdit('${catId}', ${dayKey?`'${dayKey}'`:null}, '${item.id}', this.value)">`
+    : `<div class="item-text ${checkedClass}" onclick="startEdit('${catId}', ${dayKey?`'${dayKey}'`:null}, '${item.id}')">${escapeHTML(item.text)}</div>`;
+
+  const badge = financeType ? `<span class="type-badge ${financeType}">${financeType==='income'?'수입':'지출'}</span>` : '';
+  const amountField = (getCat(catId).type === 'finance')
+    ? `<input class="amount-input" type="number" inputmode="numeric" placeholder="금액" value="${item.amount||''}"
+        onchange="updateAmount('${catId}', '${item.id}', this.value)">`
+    : '';
+
+  return `
+    <div class="item-row" style="--row-bg:${rowBg}">
+      <div class="check ${checkedClass}" style="--dot:${dotColor}"
+        onclick="toggleItem('${catId}', ${dayKey?`'${dayKey}'`:null}, '${item.id}')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="20 6 9 17 4 12"></polyline>
+        </svg>
+      </div>
+      ${badge}
+      ${textPart}
+      ${amountField}
+      <button class="del-btn" onclick="deleteItem('${catId}', ${dayKey?`'${dayKey}'`:null}, '${item.id}')">✕</button>
+    </div>`;
+}
+
+function addRowHTML(catId, dayKey, color){
+  const inputId = dayKey ? `add-${catId}-${dayKey}` : `add-${catId}`;
   return `
     <div class="add-row">
       <input type="text" id="${inputId}" placeholder="항목 추가..."
-        onkeydown="if(event.key==='Enter') addItem('${catKey}', ${dayKey?`'${dayKey}'`:null})">
-      <button style="background:${color}" onclick="addItem('${catKey}', ${dayKey?`'${dayKey}'`:null})">추가</button>
+        onkeydown="if(event.key==='Enter') addItem('${catId}', ${dayKey?`'${dayKey}'`:null})">
+      <button style="background:${color}" onclick="addItem('${catId}', ${dayKey?`'${dayKey}'`:null})">추가</button>
     </div>`;
+}
+
+function renderTabBar(){
+  const tabBar = document.getElementById('tabBar');
+  tabBar.innerHTML = state.categories.map(cat=>{
+    const c = catCounts(cat);
+    const active = cat.id === selectedId ? 'active' : '';
+    return `
+      <div class="tab ${active}" style="background:${cat.color}" onclick="selectTab('${cat.id}')">
+        <span>${escapeHTML(cat.name)}</span>
+        <span class="tab-count">${cat.type==='finance' ? cat.items.length+'건' : `${c.done}/${c.total}`}</span>
+      </div>`;
+  }).join('') + `<div class="tab tab-add" onclick="addCategory()">＋ 카테고리</div>`;
+}
+
+function renderPanel(){
+  const wrap = document.getElementById('panelWrap');
+  const cat = getCat(selectedId);
+
+  if(!cat){
+    wrap.innerHTML = `<div class="empty-state">카테고리가 없어요.<br>위에서 "＋ 카테고리"를 눌러 추가해보세요.</div>`;
+    return;
+  }
+
+  const headIcons = `
+    <div class="head-icons">
+      <button class="icon-btn" onclick="renameCategory('${cat.id}')" title="이름 수정">✏️</button>
+      <button class="icon-btn" onclick="deleteCategory('${cat.id}')" title="카테고리 삭제">🗑</button>
+    </div>`;
+
+  let body = '';
+
+  if(cat.type === 'food'){
+    body = DAYS.map(d=>{
+      const items = cat.days[d.key];
+      return `
+        <div class="day-block">
+          <span class="day-label" style="background:${d.color}">${d.label}</span>
+          ${items.length ? items.map(i=>itemRowHTML(cat.id, d.key, i, d.color, d.bg)).join('') : `<div class="empty-hint">아직 항목이 없어요</div>`}
+          ${addRowHTML(cat.id, d.key, d.color)}
+        </div>`;
+    }).join('');
+
+  } else if(cat.type === 'finance'){
+    const income = cat.items.filter(i=>i.type==='income');
+    const expense = cat.items.filter(i=>i.type==='expense');
+    const totalIncome = income.reduce((s,i)=>s+(Number(i.amount)||0),0);
+    const totalExpense = expense.reduce((s,i)=>s+(Number(i.amount)||0),0);
+    const balance = totalIncome - totalExpense;
+
+    const sortedItems = [...income, ...expense];
+
+    body = `
+      ${sortedItems.length ? sortedItems.map(i=>itemRowHTML(cat.id, null, i, cat.color, cat.bg, i.type)).join('') : `<div class="empty-hint">아직 수입/지출 내역이 없어요</div>`}
+
+      <div class="finance-toggle" style="margin-top:10px">
+        <button class="${addFinanceType==='income'?'sel-income':''}" onclick="setFinanceType('income')">＋ 수입 추가</button>
+        <button class="${addFinanceType==='expense'?'sel-expense':''}" onclick="setFinanceType('expense')">－ 지출 추가</button>
+      </div>
+      <div class="add-row">
+        <input type="text" id="add-${cat.id}" placeholder="${addFinanceType==='income'?'수입 항목 (예: 회비 입금)':'지출 항목 (예: 사이트 예약비)'}"
+          onkeydown="if(event.key==='Enter') addItem('${cat.id}', null)">
+        <button style="background:${addFinanceType==='income'?'var(--income)':'var(--expense-c)'}" onclick="addItem('${cat.id}', null)">추가</button>
+      </div>
+
+      <div class="finance-summary">
+        <div class="sum-box income-box"><div class="l">총 수입</div><div class="v">${totalIncome.toLocaleString()}원</div></div>
+        <div class="sum-box expense-box"><div class="l">총 지출</div><div class="v">${totalExpense.toLocaleString()}원</div></div>
+      </div>
+      <div class="balance-box">
+        <span class="label">잔액 (수입−지출)</span>
+        <span class="value ${balance>=0?'positive':'negative'}">${balance>=0?'+':''}${balance.toLocaleString()}원</span>
+      </div>`;
+
+  } else {
+    const items = cat.items;
+    body = `
+      ${items.length ? items.map(i=>itemRowHTML(cat.id, null, i, cat.color, cat.bg)).join('') : `<div class="empty-hint">아직 항목이 없어요</div>`}
+      ${addRowHTML(cat.id, null, cat.color)}`;
+  }
+
+  wrap.innerHTML = `
+    <div class="cat-panel">
+      <div class="cat-panel-head" style="background:${cat.color}">
+        <div class="name-block">${escapeHTML(cat.name)}</div>
+        ${headIcons}
+      </div>
+      <div class="cat-panel-body">${body}</div>
+    </div>
+    <div class="sync-note">💡 여기서 체크·추가·수정하면 링크를 연 모든 사람 화면에 실시간으로 반영돼요</div>`;
 }
 
 function render(){
   if(!state) return;
-  const c = counts();
-  const pct = c.total ? Math.round((c.done/c.total)*100) : 0;
+  const oc = overallCounts();
+  const pct = oc.total ? Math.round((oc.done/oc.total)*100) : 0;
   document.getElementById('progressFill').style.width = pct+'%';
-  document.getElementById('progressLabel').textContent = `${c.done} / ${c.total} 완료 (${pct}%)`;
-
-  $sections.innerHTML = CATEGORIES.map(cat=>{
-    const isOpen = openSections.has(cat.key);
-
-    if(cat.type === 'days'){
-      const dayCount = DAYS.reduce((s,d)=>s+state.food[d.key].length,0);
-      const dayDone = DAYS.reduce((s,d)=>s+state.food[d.key].filter(i=>i.checked).length,0);
-      const body = DAYS.map(d=>{
-        const items = state.food[d.key];
-        return `
-          <div class="day-block">
-            <span class="day-label" style="background:${d.color}">${d.label}</span>
-            ${items.length ? items.map(i=>itemRowHTML('food', d.key, i, d.color, d.bg)).join('') : `<div class="empty-hint">아직 항목이 없어요</div>`}
-            ${addRowHTML('food', d.key, d.color)}
-          </div>`;
-      }).join('');
-      return `
-        <div class="section ${isOpen?'open':''}">
-          <div class="section-head" style="background:${cat.color}" onclick="toggleSection('${cat.key}')">
-            <span>${cat.title} <span class="count">${dayDone}/${dayCount}</span></span>
-            <span class="chevron">▾</span>
-          </div>
-          <div class="section-body">${body}</div>
-        </div>`;
-    }
-
-    if(cat.type === 'expense'){
-      const items = state.expense;
-      const total = items.reduce((s,i)=>s+(Number(i.amount)||0),0);
-      const body = `
-        ${items.length ? items.map(i=>itemRowHTML('expense', null, i, cat.color, cat.bg)).join('') : `<div class="empty-hint">아직 지출 내역이 없어요</div>`}
-        ${addRowHTML('expense', null, cat.color)}
-        <div class="expense-total">
-          <span class="label">총 지출</span>
-          <span class="value">${total.toLocaleString()}원</span>
-        </div>`;
-      return `
-        <div class="section ${isOpen?'open':''}">
-          <div class="section-head" style="background:${cat.color}" onclick="toggleSection('${cat.key}')">
-            <span>${cat.title} <span class="count">${items.length}건</span></span>
-            <span class="chevron">▾</span>
-          </div>
-          <div class="section-body">${body}</div>
-        </div>`;
-    }
-
-    const items = state[cat.key];
-    const done = items.filter(i=>i.checked).length;
-    const body = `
-      ${items.length ? items.map(i=>itemRowHTML(cat.key, null, i, cat.color, cat.bg)).join('') : `<div class="empty-hint">아직 항목이 없어요</div>`}
-      ${addRowHTML(cat.key, null, cat.color)}`;
-    return `
-      <div class="section ${isOpen?'open':''}">
-        <div class="section-head" style="background:${cat.color}" onclick="toggleSection('${cat.key}')">
-          <span>${cat.title} <span class="count">${done}/${items.length}</span></span>
-          <span class="chevron">▾</span>
-        </div>
-        <div class="section-body">${body}</div>
-      </div>`;
-  }).join('') + `<div class="sync-note">💡 여기서 체크하면 링크를 연 모든 사람 화면에 실시간으로 반영돼요</div>`;
+  document.getElementById('progressLabel').textContent = `${oc.done} / ${oc.total} 완료 (${pct}%)`;
+  renderTabBar();
+  renderPanel();
 }
 </script>
 </body>
