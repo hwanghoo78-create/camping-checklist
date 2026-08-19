@@ -3,9 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>가계부 (개인용)</title>
+<title>가계부</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
 
 <style>
   :root{
@@ -53,4 +57,5 @@
 
   .add-card{ background:#fff; border:1px solid var(--canvas-line); border-radius:14px; padding:12px; margin-top:12px; }
   .add-card input[type=text], .add-card input[type=number], .add-card input[type=date]{
-    width:100%; border:1px solid var(--canv
+    width:100%; border:1px solid var(--canvas-line); border-radius:9px; padding:9px 11px; font-size:14px;
+    font-family:'Work Sans',sans-serif; background:#FBFAF5;
