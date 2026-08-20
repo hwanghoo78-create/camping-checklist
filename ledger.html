@@ -433,7 +433,73 @@ function render(){
     const tabMonthTotal = activeTab==='income' ? totalIncome : activeTab==='saving' ? totalSaving : totalExpense;
     const tabAllTimeTotal = state.transactions.filter(t=>t.type===activeTab).reduce((s,t)=>s+t.amount,0);
     banner.innerHTML = `
-      <div class="label">${fmtMonthLabel(currentMonth)} 누적 ${tabLabel}<
-    
+      <div class="label">${fmtMonthLabel(currentMonth)} 누적 ${tabLabel}</div>
+      <div class="amount">${tabMonthTotal.toLocaleString()}원</div>
+      <div class="sub">전체 누적 ${tabLabel}: ${tabAllTimeTotal.toLocaleString()}원</div>`;
+  }
 
-  
+  renderAddCard();
+
+  const tabTxns = monthTxns.filter(t=>t.type===activeTab);
+  const list = document.getElementById('txnList');
+  if(!tabTxns.length){
+    list.innerHTML = `<div class="empty-hint">이번 달 ${tabLabel} 내역이 아직 없어요<br>위에서 추가해보세요</div>`;
+    return;
+  }
+
+  const byDate = {};
+  tabTxns.forEach(t=>{ (byDate[t.date] = byDate[t.date]||[]).push(t); });
+  const dates = Object.keys(byDate).sort((a,b)=>b.localeCompare(a));
+
+  list.innerHTML = dates.map(date=>{
+    const items = byDate[date].sort((a,b)=> (b.id > a.id ? 1 : -1));
+    const rows = items.map(t=>{
+      const cat = catInfo(t.category);
+      if(editingId === t.id){
+        return `
+          <div class="edit-card">
+            <input type="text" id="edit-desc" value="${t.desc.replace(/"/g,'&quot;')}" placeholder="내용">
+            <input type="number" id="edit-amount" value="${t.amount}" placeholder="금액">
+            <input type="date" id="edit-date" value="${t.date}">
+            <select id="edit-cat">
+              ${ALL_CATEGORIES.map(c=>`<option value="${c.id}" ${c.id===t.category?'selected':''}>${c.name}</option>`).join('')}
+            </select>
+            <select id="edit-type">
+              <option value="expense" ${t.type==='expense'?'selected':''}>지출</option>
+              <option value="income" ${t.type==='income'?'selected':''}>수입</option>
+              <option value="saving" ${t.type==='saving'?'selected':''}>저축</option>
+              <option value="loan" ${t.type==='loan'?'selected':''}>대출</option>
+            </select>
+            ${t.type==='loan' ? `
+            <select id="edit-direction">
+              <option value="borrow" ${t.direction==='borrow'?'selected':''}>대출받음</option>
+              <option value="repay" ${t.direction==='repay'?'selected':''}>상환</option>
+            </select>` : ''}
+            <div class="edit-actions">
+              <button class="cancel-btn" onclick="cancelEdit()">취소</button>
+              <button class="save-btn" onclick="saveEdit('${t.id}')">저장</button>
+            </div>
+          </div>`;
+      }
+      return `
+        <div class="txn-row">
+          <div class="txn-dot" style="background:${cat.color}"></div>
+          <div class="txn-main" onclick="startEdit('${t.id}')">
+            <div class="txn-desc">${t.desc}${t.type==='loan' ? ` <span class="type-badge-inline">${t.direction==='borrow'?'대출':'상환'}</span>` : ''}</div>
+            <div class="txn-cat">${cat.name}</div>
+          </div>
+          <div class="txn-amount" style="color:${loanRowColor(t)}">${loanRowSign(t)}${t.amount.toLocaleString()}원</div>
+          <button class="del-btn" onclick="deleteTxn('${t.id}')">✕</button>
+        </div>`;
+    }).join('');
+
+    return `
+      <div class="day-group">
+        <div class="day-header">${fmtDayLabel(date)}</div>
+        ${rows}
+      </div>`;
+  }).join('');
+}
+</script>
+</body>
+</html>
