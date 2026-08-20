@@ -18,6 +18,7 @@
     --income:#2E7D53; --income-bg:#E3F1E8;
     --expense:#B04A4A; --expense-bg:#F6E4E4;
     --saving:#4A7FA8; --saving-bg:#E7EFF5;
+    --loan:#7A5C8A; --loan-bg:#EFE8F2;
   }
   *{box-sizing:border-box;}
   body{ margin:0; background:var(--canvas); font-family:'Work Sans',sans-serif; color:var(--ink); -webkit-tap-highlight-color:transparent; }
@@ -42,6 +43,7 @@
   .sum-box.income-box .v{ color:var(--income); }
   .sum-box.expense-box .v{ color:var(--expense); }
   .sum-box.saving-box .v{ color:var(--saving); }
+  .sum-box.loan-box .v{ color:var(--loan); }
   .sum-box.balance-box .v.positive{ color:var(--income); }
   .sum-box.balance-box .v.negative{ color:var(--expense); }
 
@@ -61,26 +63,36 @@
   .type-tab.expense-active{ border-color:var(--expense); color:var(--expense); background:var(--expense-bg); }
   .type-tab.income-active{ border-color:var(--income); color:var(--income); background:var(--income-bg); }
   .type-tab.saving-active{ border-color:var(--saving); color:var(--saving); background:var(--saving-bg); }
+  .type-tab.loan-active{ border-color:var(--loan); color:var(--loan); background:var(--loan-bg); }
 
   .cumulative-banner{ margin:12px; padding:16px; border-radius:14px; text-align:center; }
   .cumulative-banner.expense{ background:var(--expense-bg); border:1.5px solid var(--expense); }
   .cumulative-banner.income{ background:var(--income-bg); border:1.5px solid var(--income); }
   .cumulative-banner.saving{ background:var(--saving-bg); border:1.5px solid var(--saving); }
+  .cumulative-banner.loan{ background:var(--loan-bg); border:1.5px solid var(--loan); }
   .cumulative-banner .label{ font-size:12px; color:#8a8477; }
   .cumulative-banner .amount{ font-size:30px; font-weight:700; font-family:'Fraunces',serif; margin:2px 0; }
   .cumulative-banner.expense .amount{ color:var(--expense); }
   .cumulative-banner.income .amount{ color:var(--income); }
   .cumulative-banner.saving .amount{ color:var(--saving); }
+  .cumulative-banner.loan .amount{ color:var(--loan); }
   .cumulative-banner .sub{ font-size:12px; color:#9c9584; }
 
   .add-card{ background:#fff; border:2px solid var(--canvas-line); border-radius:14px; padding:12px; margin-top:12px; transition:border-color .15s; }
   .add-card.expense-mode{ border-color:var(--expense); }
   .add-card.income-mode{ border-color:var(--income); }
   .add-card.saving-mode{ border-color:var(--saving); }
+  .add-card.loan-mode{ border-color:var(--loan); }
   .add-card-title{ font-family:'Fraunces',serif; font-weight:700; font-size:14px; margin-bottom:8px; }
   .add-card-title.expense-mode{ color:var(--expense); }
   .add-card-title.income-mode{ color:var(--income); }
   .add-card-title.saving-mode{ color:var(--saving); }
+  .add-card-title.loan-mode{ color:var(--loan); }
+
+  .loan-direction-toggle{ display:flex; border:1px solid var(--canvas-line); border-radius:9px; overflow:hidden; margin-bottom:8px; }
+  .loan-direction-toggle button{ flex:1; padding:9px 0; border:none; background:#FBFAF5; font-size:13px; font-weight:700; cursor:pointer; color:#8a8477; }
+  .loan-direction-toggle button.sel-borrow{ background:var(--expense-bg); color:var(--expense); }
+  .loan-direction-toggle button.sel-repay{ background:var(--income-bg); color:var(--income); }
   .add-card input[type=text], .add-card input[type=number], .add-card input[type=date]{
     width:100%; border:1px solid var(--canvas-line); border-radius:9px; padding:9px 11px; font-size:14px;
     font-family:'Work Sans',sans-serif; background:#FBFAF5; margin-bottom:8px;
@@ -98,6 +110,7 @@
   .txn-main{ flex:1; min-width:0; cursor:pointer; }
   .txn-desc{ font-size:14px; font-weight:600; word-break:break-word; }
   .txn-cat{ font-size:11.5px; color:#9c9584; margin-top:1px; }
+  .type-badge-inline{ font-size:10.5px; font-weight:700; color:#9c9584; }
   .txn-amount{ font-size:14.5px; font-weight:700; font-family:'Fraunces',serif; white-space:nowrap; }
   .txn-amount.income{ color:var(--income); }
   .txn-amount.expense{ color:var(--expense); }
@@ -141,6 +154,7 @@
   <div class="sum-box expense-box"><div class="l">이번달 지출</div><div class="v" id="sumExpense">0원</div></div>
   <div class="sum-box balance-box"><div class="l">잔액</div><div class="v" id="sumBalance">0원</div></div>
   <div class="sum-box saving-box"><div class="l">이번달 저축</div><div class="v" id="sumSaving">0원</div></div>
+  <div class="sum-box loan-box"><div class="l">대출 잔액</div><div class="v" id="sumLoan">0원</div></div>
 </div>
 
 <div class="type-tabs" id="typeTabs"></div>
@@ -149,6 +163,7 @@
 <div class="wrap">
   <div class="add-card" id="addCard">
     <div class="add-card-title" id="addCardTitle"></div>
+    <div id="loanDirectionArea"></div>
     <div class="cat-chips" id="catChips"></div>
     <input type="text" id="descInput" placeholder="내용 (예: 마트 장보기)">
     <input type="number" id="amountInput" inputmode="numeric" placeholder="금액">
@@ -198,13 +213,21 @@ const SAVING_CATEGORIES = [
   { id:'invest', name:'투자', color:'#7A5C8A' },
   { id:'etc_saving', name:'기타저축', color:'#5B6E8C' },
 ];
-const ALL_CATEGORIES = [...EXPENSE_CATEGORIES, ...INCOME_CATEGORIES, ...SAVING_CATEGORIES];
-const TAB_LABELS = { expense:'지출', income:'수입', saving:'저축' };
-const TAB_EMOJI = { expense:'🔴', income:'💚', saving:'🔵' };
+const LOAN_CATEGORIES = [
+  { id:'credit', name:'신용대출', color:'#7A5C8A' },
+  { id:'mortgage', name:'담보대출', color:'#6B4C7A' },
+  { id:'student', name:'학자금대출', color:'#8C4B6B' },
+  { id:'creditline', name:'마이너스통장', color:'#9A6C8A' },
+  { id:'etc_loan', name:'기타대출', color:'#5B4C6B' },
+];
+const ALL_CATEGORIES = [...EXPENSE_CATEGORIES, ...INCOME_CATEGORIES, ...SAVING_CATEGORIES, ...LOAN_CATEGORIES];
+const TAB_LABELS = { expense:'지출', income:'수입', saving:'저축', loan:'대출' };
+const TAB_EMOJI = { expense:'🔴', income:'💚', saving:'🔵', loan:'🟣' };
 
 let state = null;
 let activeTab = 'expense';
 let selectedCat = EXPENSE_CATEGORIES[0].id;
+let loanDirection = 'repay';
 let currentMonth = new Date().toISOString().slice(0,7);
 let editingId = null;
 let suppressNextSnapshot = false;
@@ -262,9 +285,11 @@ function setTab(type){
 function getCatsForTab(type){
   if(type==='income') return INCOME_CATEGORIES;
   if(type==='saving') return SAVING_CATEGORIES;
+  if(type==='loan') return LOAN_CATEGORIES;
   return EXPENSE_CATEGORIES;
 }
 function selectCat(id){ selectedCat = id; renderAddCard(); }
+function setLoanDirection(dir){ loanDirection = dir; renderAddCard(); }
 
 function addTxn(){
   const desc = document.getElementById('descInput').value.trim();
@@ -272,10 +297,13 @@ function addTxn(){
   const date = document.getElementById('dateInput').value || todayStr();
   if(!desc || !amount){ alert('내용과 금액을 입력해주세요'); return; }
 
-  state.transactions.push({
+  const txn = {
     id: uid(), desc, amount, date,
     type: activeTab, category: selectedCat
-  });
+  };
+  if(activeTab === 'loan') txn.direction = loanDirection;
+
+  state.transactions.push(txn);
 
   document.getElementById('descInput').value = '';
   document.getElementById('amountInput').value = '';
@@ -302,12 +330,30 @@ function saveEdit(id){
   const type = document.getElementById('edit-type').value;
   if(!desc || !amount){ alert('내용과 금액을 입력해주세요'); return; }
   t.desc = desc; t.amount = amount; t.date = date; t.category = cat; t.type = type;
+  if(type === 'loan'){
+    const dirEl = document.getElementById('edit-direction');
+    t.direction = dirEl ? dirEl.value : (t.direction || 'repay');
+  } else {
+    delete t.direction;
+  }
   editingId = null;
   saveState();
   render();
 }
 
 function catInfo(id){ return ALL_CATEGORIES.find(c=>c.id===id) || EXPENSE_CATEGORIES[EXPENSE_CATEGORIES.length-1]; }
+function loanRowColor(t){
+  if(t.type==='expense') return 'var(--expense)';
+  if(t.type==='income') return 'var(--income)';
+  if(t.type==='saving') return 'var(--saving)';
+  if(t.type==='loan') return t.direction==='borrow' ? 'var(--expense)' : 'var(--income)';
+  return 'var(--ink)';
+}
+function loanRowSign(t){
+  if(t.type==='expense') return '-';
+  if(t.type==='loan') return t.direction==='borrow' ? '+' : '-';
+  return '+';
+}
 function fmtMonthLabel(ym){
   const [y,m] = ym.split('-');
   return `${y}년 ${Number(m)}월`;
@@ -326,13 +372,24 @@ function renderAddCard(){
     <div class="chip ${c.id===selectedCat?'sel':''}" style="background:${c.color}" onclick="selectCat('${c.id}')">${c.name}</div>
   `).join('');
 
+  const loanArea = document.getElementById('loanDirectionArea');
+  if(activeTab === 'loan'){
+    loanArea.innerHTML = `
+      <div class="loan-direction-toggle">
+        <button class="${loanDirection==='borrow'?'sel-borrow':''}" onclick="setLoanDirection('borrow')">＋ 대출받음</button>
+        <button class="${loanDirection==='repay'?'sel-repay':''}" onclick="setLoanDirection('repay')">－ 상환</button>
+      </div>`;
+  } else {
+    loanArea.innerHTML = '';
+  }
+
   const card = document.getElementById('addCard');
   const title = document.getElementById('addCardTitle');
   const btn = document.getElementById('addBtn');
   card.className = 'add-card ' + activeTab + '-mode';
   title.className = 'add-card-title ' + activeTab + '-mode';
   title.textContent = `${TAB_EMOJI[activeTab]} ${TAB_LABELS[activeTab]} 추가`;
-  btn.style.background = activeTab==='income' ? 'var(--income)' : activeTab==='saving' ? 'var(--saving)' : 'var(--ember)';
+  btn.style.background = activeTab==='income' ? 'var(--income)' : activeTab==='saving' ? 'var(--saving)' : activeTab==='loan' ? 'var(--loan)' : 'var(--ember)';
 }
 
 function render(){
@@ -352,75 +409,31 @@ function render(){
   balEl.textContent = (balance>=0?'+':'')+balance.toLocaleString()+'원';
   balEl.className = 'v ' + (balance>=0?'positive':'negative');
 
-  document.getElementById('typeTabs').innerHTML = ['expense','income','saving'].map(tab=>
+  const allLoanBorrow = state.transactions.filter(t=>t.type==='loan' && t.direction==='borrow').reduce((s,t)=>s+t.amount,0);
+  const allLoanRepay = state.transactions.filter(t=>t.type==='loan' && t.direction==='repay').reduce((s,t)=>s+t.amount,0);
+  const loanRemaining = allLoanBorrow - allLoanRepay;
+  document.getElementById('sumLoan').textContent = loanRemaining.toLocaleString()+'원';
+
+  document.getElementById('typeTabs').innerHTML = ['expense','income','saving','loan'].map(tab=>
     `<div class="type-tab ${activeTab===tab?tab+'-active':''}" onclick="setTab('${tab}')">${TAB_EMOJI[tab]} ${TAB_LABELS[tab]}</div>`
   ).join('');
 
   const tabLabel = TAB_LABELS[activeTab];
-  const tabMonthTotal = activeTab==='income' ? totalIncome : activeTab==='saving' ? totalSaving : totalExpense;
-  const tabAllTimeTotal = state.transactions.filter(t=>t.type===activeTab).reduce((s,t)=>s+t.amount,0);
-  document.getElementById('cumulativeBanner').className = 'cumulative-banner ' + activeTab;
-  document.getElementById('cumulativeBanner').innerHTML = `
-    <div class="label">${fmtMonthLabel(currentMonth)} 누적 ${tabLabel}</div>
-    <div class="amount">${tabMonthTotal.toLocaleString()}원</div>
-    <div class="sub">전체 누적 ${tabLabel}: ${tabAllTimeTotal.toLocaleString()}원</div>`;
+  const banner = document.getElementById('cumulativeBanner');
+  banner.className = 'cumulative-banner ' + activeTab;
 
-  renderAddCard();
+  if(activeTab === 'loan'){
+    const monthBorrow = monthTxns.filter(t=>t.type==='loan' && t.direction==='borrow').reduce((s,t)=>s+t.amount,0);
+    const monthRepay = monthTxns.filter(t=>t.type==='loan' && t.direction==='repay').reduce((s,t)=>s+t.amount,0);
+    banner.innerHTML = `
+      <div class="label">현재 대출 잔액</div>
+      <div class="amount">${loanRemaining.toLocaleString()}원</div>
+      <div class="sub">이번달 상환 ${monthRepay.toLocaleString()}원 · 이번달 대출 ${monthBorrow.toLocaleString()}원</div>`;
+  } else {
+    const tabMonthTotal = activeTab==='income' ? totalIncome : activeTab==='saving' ? totalSaving : totalExpense;
+    const tabAllTimeTotal = state.transactions.filter(t=>t.type===activeTab).reduce((s,t)=>s+t.amount,0);
+    banner.innerHTML = `
+      <div class="label">${fmtMonthLabel(currentMonth)} 누적 ${tabLabel}<
+    
 
-  const tabTxns = monthTxns.filter(t=>t.type===activeTab);
-  const list = document.getElementById('txnList');
-  if(!tabTxns.length){
-    list.innerHTML = `<div class="empty-hint">이번 달 ${tabLabel} 내역이 아직 없어요<br>위에서 추가해보세요</div>`;
-    return;
-  }
-
-  const byDate = {};
-  tabTxns.forEach(t=>{ (byDate[t.date] = byDate[t.date]||[]).push(t); });
-  const dates = Object.keys(byDate).sort((a,b)=>b.localeCompare(a));
-
-  list.innerHTML = dates.map(date=>{
-    const items = byDate[date].sort((a,b)=> (b.id > a.id ? 1 : -1));
-    const rows = items.map(t=>{
-      const cat = catInfo(t.category);
-      if(editingId === t.id){
-        return `
-          <div class="edit-card">
-            <input type="text" id="edit-desc" value="${t.desc.replace(/"/g,'&quot;')}" placeholder="내용">
-            <input type="number" id="edit-amount" value="${t.amount}" placeholder="금액">
-            <input type="date" id="edit-date" value="${t.date}">
-            <select id="edit-cat">
-              ${ALL_CATEGORIES.map(c=>`<option value="${c.id}" ${c.id===t.category?'selected':''}>${c.name}</option>`).join('')}
-            </select>
-            <select id="edit-type">
-              <option value="expense" ${t.type==='expense'?'selected':''}>지출</option>
-              <option value="income" ${t.type==='income'?'selected':''}>수입</option>
-              <option value="saving" ${t.type==='saving'?'selected':''}>저축</option>
-            </select>
-            <div class="edit-actions">
-              <button class="cancel-btn" onclick="cancelEdit()">취소</button>
-              <button class="save-btn" onclick="saveEdit('${t.id}')">저장</button>
-            </div>
-          </div>`;
-      }
-      return `
-        <div class="txn-row">
-          <div class="txn-dot" style="background:${cat.color}"></div>
-          <div class="txn-main" onclick="startEdit('${t.id}')">
-            <div class="txn-desc">${t.desc}</div>
-            <div class="txn-cat">${cat.name}</div>
-          </div>
-          <div class="txn-amount ${t.type}">${t.type==='expense'?'-':'+'}${t.amount.toLocaleString()}원</div>
-          <button class="del-btn" onclick="deleteTxn('${t.id}')">✕</button>
-        </div>`;
-    }).join('');
-
-    return `
-      <div class="day-group">
-        <div class="day-header">${fmtDayLabel(date)}</div>
-        ${rows}
-      </div>`;
-  }).join('');
-}
-</script>
-</body>
-</html>
+  
