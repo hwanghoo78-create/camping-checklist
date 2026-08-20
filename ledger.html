@@ -50,12 +50,30 @@
   .chip{ flex:0 0 auto; padding:7px 12px; border-radius:999px; font-size:12.5px; font-weight:600; color:#fff; opacity:0.45; cursor:pointer; white-space:nowrap; }
   .chip.sel{ opacity:1; box-shadow:0 2px 6px rgba(0,0,0,0.15); }
 
-  .type-toggle{ display:flex; border:1px solid var(--canvas-line); border-radius:9px; overflow:hidden; margin-bottom:8px; }
-  .type-toggle button{ flex:1; padding:9px 0; border:none; background:#FBFAF5; font-size:13px; font-weight:700; cursor:pointer; color:#8a8477; }
-  .type-toggle button.sel-income{ background:var(--income-bg); color:var(--income); }
-  .type-toggle button.sel-expense{ background:var(--expense-bg); color:var(--expense); }
+  .type-tabs{ display:flex; gap:8px; padding:12px 12px 0; max-width:640px; margin:0 auto; }
+  .type-tab{
+    flex:1; padding:13px; border-radius:12px; text-align:center; font-family:'Fraunces',serif;
+    font-weight:700; font-size:15px; cursor:pointer; border:2px solid var(--canvas-line);
+    color:#8a8477; background:#fff;
+  }
+  .type-tab.expense-active{ border-color:var(--expense); color:var(--expense); background:var(--expense-bg); }
+  .type-tab.income-active{ border-color:var(--income); color:var(--income); background:var(--income-bg); }
 
-  .add-card{ background:#fff; border:1px solid var(--canvas-line); border-radius:14px; padding:12px; margin-top:12px; }
+  .cumulative-banner{ margin:12px; padding:16px; border-radius:14px; text-align:center; }
+  .cumulative-banner.expense{ background:var(--expense-bg); border:1.5px solid var(--expense); }
+  .cumulative-banner.income{ background:var(--income-bg); border:1.5px solid var(--income); }
+  .cumulative-banner .label{ font-size:12px; color:#8a8477; }
+  .cumulative-banner .amount{ font-size:30px; font-weight:700; font-family:'Fraunces',serif; margin:2px 0; }
+  .cumulative-banner.expense .amount{ color:var(--expense); }
+  .cumulative-banner.income .amount{ color:var(--income); }
+  .cumulative-banner .sub{ font-size:12px; color:#9c9584; }
+
+  .add-card{ background:#fff; border:2px solid var(--canvas-line); border-radius:14px; padding:12px; margin-top:12px; transition:border-color .15s; }
+  .add-card.expense-mode{ border-color:var(--expense); }
+  .add-card.income-mode{ border-color:var(--income); }
+  .add-card-title{ font-family:'Fraunces',serif; font-weight:700; font-size:14px; margin-bottom:8px; }
+  .add-card-title.expense-mode{ color:var(--expense); }
+  .add-card-title.income-mode{ color:var(--income); }
   .add-card input[type=text], .add-card input[type=number], .add-card input[type=date]{
     width:100%; border:1px solid var(--canvas-line); border-radius:9px; padding:9px 11px; font-size:14px;
     font-family:'Work Sans',sans-serif; background:#FBFAF5; margin-bottom:8px;
@@ -116,17 +134,17 @@
   <div class="sum-box balance-box"><div class="l">잔액</div><div class="v" id="sumBalance">0원</div></div>
 </div>
 
+<div class="type-tabs" id="typeTabs"></div>
+<div class="cumulative-banner" id="cumulativeBanner"></div>
+
 <div class="wrap">
-  <div class="add-card">
-    <div class="type-toggle">
-      <button id="typeIncomeBtn" onclick="setType('income')">＋ 수입</button>
-      <button id="typeExpenseBtn" onclick="setType('expense')">－ 지출</button>
-    </div>
+  <div class="add-card" id="addCard">
+    <div class="add-card-title" id="addCardTitle"></div>
     <div class="cat-chips" id="catChips"></div>
     <input type="text" id="descInput" placeholder="내용 (예: 마트 장보기)">
     <input type="number" id="amountInput" inputmode="numeric" placeholder="금액">
     <input type="date" id="dateInput">
-    <button class="add-btn" onclick="addTxn()">추가하기</button>
+    <button class="add-btn" id="addBtn" onclick="addTxn()">추가하기</button>
   </div>
 
   <div id="txnList"></div>
@@ -146,7 +164,7 @@ const auth = firebase.auth();
 const db = firebase.firestore();
 const DOC_REF = db.collection('household').doc('ledger');
 
-const CATEGORIES = [
+const EXPENSE_CATEGORIES = [
   { id:'food', name:'식비', color:'#A15C3B' },
   { id:'cafe', name:'카페/간식', color:'#B4901F' },
   { id:'transport', name:'교통', color:'#4A7FA8' },
@@ -158,10 +176,17 @@ const CATEGORIES = [
   { id:'event', name:'경조사', color:'#B04A4A' },
   { id:'etc', name:'기타', color:'#7D5A29' },
 ];
+const INCOME_CATEGORIES = [
+  { id:'salary', name:'급여', color:'#2E7D53' },
+  { id:'sidejob', name:'부수입', color:'#3B6E5C' },
+  { id:'gift', name:'용돈/선물', color:'#5B8C6E' },
+  { id:'etc_income', name:'기타수입', color:'#4A7050' },
+];
+const ALL_CATEGORIES = [...EXPENSE_CATEGORIES, ...INCOME_CATEGORIES];
 
 let state = null;
-let selectedCat = 'food';
-let selectedType = 'expense';
+let activeTab = 'expense';
+let selectedCat = EXPENSE_CATEGORIES[0].id;
 let currentMonth = new Date().toISOString().slice(0,7);
 let editingId = null;
 let suppressNextSnapshot = false;
@@ -211,7 +236,12 @@ function changeMonth(delta){
   render();
 }
 
-function setType(type){ selectedType = type; renderAddCard(); }
+function setTab(type){
+  activeTab = type;
+  const cats = type === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
+  selectedCat = cats[0].id;
+  render();
+}
 function selectCat(id){ selectedCat = id; renderAddCard(); }
 
 function addTxn(){
@@ -222,7 +252,7 @@ function addTxn(){
 
   state.transactions.push({
     id: uid(), desc, amount, date,
-    type: selectedType, category: selectedCat
+    type: activeTab, category: selectedCat
   });
 
   document.getElementById('descInput').value = '';
@@ -255,7 +285,7 @@ function saveEdit(id){
   render();
 }
 
-function catInfo(id){ return CATEGORIES.find(c=>c.id===id) || CATEGORIES[CATEGORIES.length-1]; }
+function catInfo(id){ return ALL_CATEGORIES.find(c=>c.id===id) || EXPENSE_CATEGORIES[EXPENSE_CATEGORIES.length-1]; }
 function fmtMonthLabel(ym){
   const [y,m] = ym.split('-');
   return `${y}년 ${Number(m)}월`;
@@ -267,19 +297,25 @@ function fmtDayLabel(dateStr){
 }
 
 function renderAddCard(){
-  document.getElementById('typeIncomeBtn').className = selectedType==='income' ? 'sel-income' : '';
-  document.getElementById('typeExpenseBtn').className = selectedType==='expense' ? 'sel-expense' : '';
+  const cats = activeTab === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
   document.getElementById('dateInput').value = document.getElementById('dateInput').value || todayStr();
 
-  document.getElementById('catChips').innerHTML = CATEGORIES.map(c=>`
+  document.getElementById('catChips').innerHTML = cats.map(c=>`
     <div class="chip ${c.id===selectedCat?'sel':''}" style="background:${c.color}" onclick="selectCat('${c.id}')">${c.name}</div>
   `).join('');
+
+  const card = document.getElementById('addCard');
+  const title = document.getElementById('addCardTitle');
+  const btn = document.getElementById('addBtn');
+  card.className = 'add-card ' + (activeTab==='income' ? 'income-mode' : 'expense-mode');
+  title.className = 'add-card-title ' + (activeTab==='income' ? 'income-mode' : 'expense-mode');
+  title.textContent = activeTab==='income' ? '💚 수입 추가' : '🔴 지출 추가';
+  btn.style.background = activeTab==='income' ? 'var(--income)' : 'var(--ember)';
 }
 
 function render(){
   if(!state) return;
   document.getElementById('monthLabel').textContent = fmtMonthLabel(currentMonth);
-  renderAddCard();
 
   const monthTxns = state.transactions.filter(t=>t.date.startsWith(currentMonth));
   const totalIncome = monthTxns.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
@@ -292,14 +328,30 @@ function render(){
   balEl.textContent = (balance>=0?'+':'')+balance.toLocaleString()+'원';
   balEl.className = 'v ' + (balance>=0?'positive':'negative');
 
+  document.getElementById('typeTabs').innerHTML = `
+    <div class="type-tab ${activeTab==='expense'?'expense-active':''}" onclick="setTab('expense')">🔴 지출</div>
+    <div class="type-tab ${activeTab==='income'?'income-active':''}" onclick="setTab('income')">💚 수입</div>`;
+
+  const tabLabel = activeTab === 'income' ? '수입' : '지출';
+  const tabMonthTotal = activeTab === 'income' ? totalIncome : totalExpense;
+  const tabAllTimeTotal = state.transactions.filter(t=>t.type===activeTab).reduce((s,t)=>s+t.amount,0);
+  document.getElementById('cumulativeBanner').className = 'cumulative-banner ' + activeTab;
+  document.getElementById('cumulativeBanner').innerHTML = `
+    <div class="label">${fmtMonthLabel(currentMonth)} 누적 ${tabLabel}</div>
+    <div class="amount">${tabMonthTotal.toLocaleString()}원</div>
+    <div class="sub">전체 누적 ${tabLabel}: ${tabAllTimeTotal.toLocaleString()}원</div>`;
+
+  renderAddCard();
+
+  const tabTxns = monthTxns.filter(t=>t.type===activeTab);
   const list = document.getElementById('txnList');
-  if(!monthTxns.length){
-    list.innerHTML = `<div class="empty-hint">이번 달 내역이 아직 없어요<br>위에서 추가해보세요</div>`;
+  if(!tabTxns.length){
+    list.innerHTML = `<div class="empty-hint">이번 달 ${tabLabel} 내역이 아직 없어요<br>위에서 추가해보세요</div>`;
     return;
   }
 
   const byDate = {};
-  monthTxns.forEach(t=>{ (byDate[t.date] = byDate[t.date]||[]).push(t); });
+  tabTxns.forEach(t=>{ (byDate[t.date] = byDate[t.date]||[]).push(t); });
   const dates = Object.keys(byDate).sort((a,b)=>b.localeCompare(a));
 
   list.innerHTML = dates.map(date=>{
@@ -313,7 +365,7 @@ function render(){
             <input type="number" id="edit-amount" value="${t.amount}" placeholder="금액">
             <input type="date" id="edit-date" value="${t.date}">
             <select id="edit-cat">
-              ${CATEGORIES.map(c=>`<option value="${c.id}" ${c.id===t.category?'selected':''}>${c.name}</option>`).join('')}
+              ${ALL_CATEGORIES.map(c=>`<option value="${c.id}" ${c.id===t.category?'selected':''}>${c.name}</option>`).join('')}
             </select>
             <select id="edit-type">
               <option value="expense" ${t.type==='expense'?'selected':''}>지출</option>
