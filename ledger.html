@@ -17,6 +17,7 @@
     --ember:#D9713C; --ember-dark:#B85A2A;
     --income:#2E7D53; --income-bg:#E3F1E8;
     --expense:#B04A4A; --expense-bg:#F6E4E4;
+    --saving:#4A7FA8; --saving-bg:#E7EFF5;
   }
   *{box-sizing:border-box;}
   body{ margin:0; background:var(--canvas); font-family:'Work Sans',sans-serif; color:var(--ink); -webkit-tap-highlight-color:transparent; }
@@ -34,12 +35,13 @@
   .month-nav button{ background:rgba(255,255,255,0.15); border:none; color:#fff; width:32px; height:32px; border-radius:9px; font-size:16px; cursor:pointer; }
   .month-nav .m-label{ font-family:'Fraunces',serif; font-weight:700; font-size:16px; min-width:110px; text-align:center; }
 
-  .summary-row{ display:flex; gap:8px; padding:12px; max-width:640px; margin:0 auto; }
-  .sum-box{ flex:1; border-radius:12px; padding:11px; text-align:center; background:#fff; border:1px solid var(--canvas-line); }
+  .summary-row{ display:flex; flex-wrap:wrap; gap:8px; padding:12px; max-width:640px; margin:0 auto; }
+  .sum-box{ flex:1 1 calc(50% - 4px); min-width:0; border-radius:12px; padding:11px; text-align:center; background:#fff; border:1px solid var(--canvas-line); }
   .sum-box .l{ font-size:11px; color:#8a8477; margin-bottom:3px; }
   .sum-box .v{ font-size:15px; font-weight:700; font-family:'Fraunces',serif; }
   .sum-box.income-box .v{ color:var(--income); }
   .sum-box.expense-box .v{ color:var(--expense); }
+  .sum-box.saving-box .v{ color:var(--saving); }
   .sum-box.balance-box .v.positive{ color:var(--income); }
   .sum-box.balance-box .v.negative{ color:var(--expense); }
 
@@ -58,22 +60,27 @@
   }
   .type-tab.expense-active{ border-color:var(--expense); color:var(--expense); background:var(--expense-bg); }
   .type-tab.income-active{ border-color:var(--income); color:var(--income); background:var(--income-bg); }
+  .type-tab.saving-active{ border-color:var(--saving); color:var(--saving); background:var(--saving-bg); }
 
   .cumulative-banner{ margin:12px; padding:16px; border-radius:14px; text-align:center; }
   .cumulative-banner.expense{ background:var(--expense-bg); border:1.5px solid var(--expense); }
   .cumulative-banner.income{ background:var(--income-bg); border:1.5px solid var(--income); }
+  .cumulative-banner.saving{ background:var(--saving-bg); border:1.5px solid var(--saving); }
   .cumulative-banner .label{ font-size:12px; color:#8a8477; }
   .cumulative-banner .amount{ font-size:30px; font-weight:700; font-family:'Fraunces',serif; margin:2px 0; }
   .cumulative-banner.expense .amount{ color:var(--expense); }
   .cumulative-banner.income .amount{ color:var(--income); }
+  .cumulative-banner.saving .amount{ color:var(--saving); }
   .cumulative-banner .sub{ font-size:12px; color:#9c9584; }
 
   .add-card{ background:#fff; border:2px solid var(--canvas-line); border-radius:14px; padding:12px; margin-top:12px; transition:border-color .15s; }
   .add-card.expense-mode{ border-color:var(--expense); }
   .add-card.income-mode{ border-color:var(--income); }
+  .add-card.saving-mode{ border-color:var(--saving); }
   .add-card-title{ font-family:'Fraunces',serif; font-weight:700; font-size:14px; margin-bottom:8px; }
   .add-card-title.expense-mode{ color:var(--expense); }
   .add-card-title.income-mode{ color:var(--income); }
+  .add-card-title.saving-mode{ color:var(--saving); }
   .add-card input[type=text], .add-card input[type=number], .add-card input[type=date]{
     width:100%; border:1px solid var(--canvas-line); border-radius:9px; padding:9px 11px; font-size:14px;
     font-family:'Work Sans',sans-serif; background:#FBFAF5; margin-bottom:8px;
@@ -94,6 +101,7 @@
   .txn-amount{ font-size:14.5px; font-weight:700; font-family:'Fraunces',serif; white-space:nowrap; }
   .txn-amount.income{ color:var(--income); }
   .txn-amount.expense{ color:var(--expense); }
+  .txn-amount.saving{ color:var(--saving); }
   .del-btn{ width:24px; height:24px; border:none; background:transparent; color:#C9C2AE; font-size:16px; cursor:pointer; flex-shrink:0; }
   .del-btn:hover{ color:var(--expense); }
 
@@ -132,6 +140,7 @@
   <div class="sum-box income-box"><div class="l">이번달 수입</div><div class="v" id="sumIncome">0원</div></div>
   <div class="sum-box expense-box"><div class="l">이번달 지출</div><div class="v" id="sumExpense">0원</div></div>
   <div class="sum-box balance-box"><div class="l">잔액</div><div class="v" id="sumBalance">0원</div></div>
+  <div class="sum-box saving-box"><div class="l">이번달 저축</div><div class="v" id="sumSaving">0원</div></div>
 </div>
 
 <div class="type-tabs" id="typeTabs"></div>
@@ -182,7 +191,16 @@ const INCOME_CATEGORIES = [
   { id:'gift', name:'용돈/선물', color:'#5B8C6E' },
   { id:'etc_income', name:'기타수입', color:'#4A7050' },
 ];
-const ALL_CATEGORIES = [...EXPENSE_CATEGORIES, ...INCOME_CATEGORIES];
+const SAVING_CATEGORIES = [
+  { id:'installment', name:'적금', color:'#4A7FA8' },
+  { id:'deposit', name:'예금', color:'#3D6690' },
+  { id:'emergency', name:'비상금', color:'#2E7D6B' },
+  { id:'invest', name:'투자', color:'#7A5C8A' },
+  { id:'etc_saving', name:'기타저축', color:'#5B6E8C' },
+];
+const ALL_CATEGORIES = [...EXPENSE_CATEGORIES, ...INCOME_CATEGORIES, ...SAVING_CATEGORIES];
+const TAB_LABELS = { expense:'지출', income:'수입', saving:'저축' };
+const TAB_EMOJI = { expense:'🔴', income:'💚', saving:'🔵' };
 
 let state = null;
 let activeTab = 'expense';
@@ -238,9 +256,13 @@ function changeMonth(delta){
 
 function setTab(type){
   activeTab = type;
-  const cats = type === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
-  selectedCat = cats[0].id;
+  selectedCat = getCatsForTab(type)[0].id;
   render();
+}
+function getCatsForTab(type){
+  if(type==='income') return INCOME_CATEGORIES;
+  if(type==='saving') return SAVING_CATEGORIES;
+  return EXPENSE_CATEGORIES;
 }
 function selectCat(id){ selectedCat = id; renderAddCard(); }
 
@@ -297,7 +319,7 @@ function fmtDayLabel(dateStr){
 }
 
 function renderAddCard(){
-  const cats = activeTab === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
+  const cats = getCatsForTab(activeTab);
   document.getElementById('dateInput').value = document.getElementById('dateInput').value || todayStr();
 
   document.getElementById('catChips').innerHTML = cats.map(c=>`
@@ -307,10 +329,10 @@ function renderAddCard(){
   const card = document.getElementById('addCard');
   const title = document.getElementById('addCardTitle');
   const btn = document.getElementById('addBtn');
-  card.className = 'add-card ' + (activeTab==='income' ? 'income-mode' : 'expense-mode');
-  title.className = 'add-card-title ' + (activeTab==='income' ? 'income-mode' : 'expense-mode');
-  title.textContent = activeTab==='income' ? '💚 수입 추가' : '🔴 지출 추가';
-  btn.style.background = activeTab==='income' ? 'var(--income)' : 'var(--ember)';
+  card.className = 'add-card ' + activeTab + '-mode';
+  title.className = 'add-card-title ' + activeTab + '-mode';
+  title.textContent = `${TAB_EMOJI[activeTab]} ${TAB_LABELS[activeTab]} 추가`;
+  btn.style.background = activeTab==='income' ? 'var(--income)' : activeTab==='saving' ? 'var(--saving)' : 'var(--ember)';
 }
 
 function render(){
@@ -320,20 +342,22 @@ function render(){
   const monthTxns = state.transactions.filter(t=>t.date.startsWith(currentMonth));
   const totalIncome = monthTxns.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
   const totalExpense = monthTxns.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
+  const totalSaving = monthTxns.filter(t=>t.type==='saving').reduce((s,t)=>s+t.amount,0);
   const balance = totalIncome - totalExpense;
 
   document.getElementById('sumIncome').textContent = totalIncome.toLocaleString()+'원';
   document.getElementById('sumExpense').textContent = totalExpense.toLocaleString()+'원';
+  document.getElementById('sumSaving').textContent = totalSaving.toLocaleString()+'원';
   const balEl = document.getElementById('sumBalance');
   balEl.textContent = (balance>=0?'+':'')+balance.toLocaleString()+'원';
   balEl.className = 'v ' + (balance>=0?'positive':'negative');
 
-  document.getElementById('typeTabs').innerHTML = `
-    <div class="type-tab ${activeTab==='expense'?'expense-active':''}" onclick="setTab('expense')">🔴 지출</div>
-    <div class="type-tab ${activeTab==='income'?'income-active':''}" onclick="setTab('income')">💚 수입</div>`;
+  document.getElementById('typeTabs').innerHTML = ['expense','income','saving'].map(tab=>
+    `<div class="type-tab ${activeTab===tab?tab+'-active':''}" onclick="setTab('${tab}')">${TAB_EMOJI[tab]} ${TAB_LABELS[tab]}</div>`
+  ).join('');
 
-  const tabLabel = activeTab === 'income' ? '수입' : '지출';
-  const tabMonthTotal = activeTab === 'income' ? totalIncome : totalExpense;
+  const tabLabel = TAB_LABELS[activeTab];
+  const tabMonthTotal = activeTab==='income' ? totalIncome : activeTab==='saving' ? totalSaving : totalExpense;
   const tabAllTimeTotal = state.transactions.filter(t=>t.type===activeTab).reduce((s,t)=>s+t.amount,0);
   document.getElementById('cumulativeBanner').className = 'cumulative-banner ' + activeTab;
   document.getElementById('cumulativeBanner').innerHTML = `
@@ -370,6 +394,7 @@ function render(){
             <select id="edit-type">
               <option value="expense" ${t.type==='expense'?'selected':''}>지출</option>
               <option value="income" ${t.type==='income'?'selected':''}>수입</option>
+              <option value="saving" ${t.type==='saving'?'selected':''}>저축</option>
             </select>
             <div class="edit-actions">
               <button class="cancel-btn" onclick="cancelEdit()">취소</button>
@@ -384,7 +409,7 @@ function render(){
             <div class="txn-desc">${t.desc}</div>
             <div class="txn-cat">${cat.name}</div>
           </div>
-          <div class="txn-amount ${t.type}">${t.type==='income'?'+':'-'}${t.amount.toLocaleString()}원</div>
+          <div class="txn-amount ${t.type}">${t.type==='expense'?'-':'+'}${t.amount.toLocaleString()}원</div>
           <button class="del-btn" onclick="deleteTxn('${t.id}')">✕</button>
         </div>`;
     }).join('');
