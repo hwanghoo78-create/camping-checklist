@@ -102,6 +102,12 @@
     background:none; border-radius:14px; padding:5px 11px; cursor:pointer; font-family:inherit; font-weight:600;
   }
 
+  .loading-screen{
+    position:fixed; inset:0; background:var(--paper); display:flex; align-items:center; justify-content:center;
+    flex-direction:column; gap:10px; font-family:'Noto Serif KR',serif; font-weight:700; z-index:999;
+  }
+  .loading-screen.hide{ display:none; }
+
   /* Ledger index tabs (signature element) */
   .index-strip{
     display:flex; overflow-x:auto; gap:0; margin-bottom:16px;
@@ -259,6 +265,7 @@
 </style>
 </head>
 <body>
+<div class="loading-screen" id="loadingScreen"><div>📔</div><div>불러오는 중...</div></div>
 <div class="wrap">
 
   <header class="top">
@@ -355,7 +362,7 @@
 </div>
 
 <script>
-const MONTHS = [1,2,3,4,5,6,7,8,9,10,11,12];
+  const MONTHS = [1,2,3,4,5,6,7,8,9,10,11,12];
 const DEFAULT_CHECKLIST = () => [
   {label:'회비 입금 확인', done:false},
   {label:'영수증·지출내역 정리', done:false},
@@ -471,7 +478,7 @@ auth.onAuthStateChanged(user=>{
       data = snap.data().payload;
     } else {
       data = DEFAULT_DATA;
-      await DOC_REF.set({ payload: data, updatedAt: Date.now() });
+      saveData(); // 최초 1회 게시 — 실패해도 화면 렌더링은 막지 않음
     }
 
     // 현재 선택된 연도가 없거나 삭제됐으면 가장 최신 연도로
@@ -479,10 +486,11 @@ auth.onAuthStateChanged(user=>{
     if(currentYear === null || !data.years[currentYear]){
       currentYear = years[years.length-1];
     }
+    document.getElementById('loadingScreen').classList.add('hide');
     renderAll();
   }, (err)=>{
     console.error(err);
-    alert('데이터를 불러오는 데 실패했어요. 새로고침 해주세요.');
+    document.getElementById('loadingScreen').innerHTML = '<div>⚠️</div><div>연결에 실패했어요. 새로고침 해주세요.</div>';
   });
 });
 
@@ -699,6 +707,7 @@ function renderAdminBtn(){
 }
 
 function toggleAdmin(){
+  if(!data){ alert('아직 불러오는 중이에요. 잠시 후 다시 시도해 주세요.'); return; }
   if(isAdmin){ lockAdmin(); return; }
   document.getElementById('pinTitle').textContent = '🔑 관리자 PIN 입력';
   document.getElementById('pinHint').textContent = '체크·수정·삭제를 하려면 관리자 PIN이 필요해요.';
