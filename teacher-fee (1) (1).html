@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>교사회비 정산 장부</title>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;700;900&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+  :root{
+    --paper: #F6F1E4;
+    --paper-line: #DED2AE;
+    --ink: #2B2A24;
+    --ink-soft: #6B6656;
+    --sage: #5C7A5E;
+    --sage-deep: #3E5C42;
+    --rust: #B0503A;
+    --gold: #B8863C;
+    --gold-soft: #EADFC0;
+    --card: #FFFDF7;
+    --shadow: rgba(43,42,36,0.14);
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:'IBM Plex Mono', ui-monospace, monospace;
+    background:
+      repeating-linear-gradient(180deg, transparent, transparent 27px, var(--paper-line) 28px),
+      var(--paper);
+    color:var(--ink);
+    padding-bottom:60px;
+    min-height:100vh;
+  }
+  .wrap{max-width:720px;margin:0 auto;padding:18px 14px 40px;}
+
+  header.top{
+    display:flex; align-items:flex-start; justify-content:space-between; gap:10px;
+    margin-bottom:14px;
+  }
+  .title-block h1{
+    font-family:'Noto Serif KR', serif;
+    font-weight:900;
+    font-size:22px;
+    margin:0 0 2px;
+    letter-spacing:-0.5px;
+  }
+  .title-block .sub{
+    font-size:11.5px; color:var(--ink-soft); letter-spacing:0.3px;
+  }
+
+  #adminBtn{
+    flex-shrink:0;
+    border:1.5px solid var(--ink);
+    background:var(--card);
+    border-radius:20px;
+    padding:7px 12px;
+    font-family:inherit;
+    font-size:11.5px;
+    font-weight:600;
+    cursor:pointer;
+    display:flex; align-items:center; gap:5px;
+    transition:all .15s;
+  }
+  #adminBtn.on{background:var(--sage-deep); color:#fff; border-color:var(--sage-deep);}
+  #adminBtn:active{transform:scale(0.96);}
+
+  .banner{
+    font-size:11px; color:var(--ink-soft); background:var(--gold-soft);
+    border:1px dashed var(--gold); border-radius:8px; padding:8px 10px; margin-bottom:16px;
+    line-height:1.5;
+  }
+
+  /* Summary strip */
+  .summary{
+    display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:18px;
+  }
+  .sum-card{
+    background:var(--card); border:1px solid var(--paper-line); border-radius:10px;
+    padding:10px 8px; text-align:center; box-shadow:0 2px 0 var(--shadow);
+  }
+  .sum-card .lbl{font-size:10px; color:var(--ink-soft); margin-bottom:4px;}
+  .sum-card .val{font-size:15px; font-weight:600;}
+  .sum-card.balance .val{font-family:'Noto Serif KR',serif; font-weight:900; font-size:17px;}
+  .pos{color:var(--sage-deep);}
+  .neg{color:var(--rust);}
+
+  /* Year navigation */
+  .year-nav{
+    display:flex; align-items:center; justify-content:center; gap:12px; margin-bottom:12px;
+  }
+  .year-nav button.arrow{
+    background:var(--card); border:1.5px solid var(--ink); border-radius:8px;
+    width:30px; height:30px; font-size:15px; cursor:pointer; line-height:1;
+  }
+  .year-nav button.arrow:disabled{ opacity:0.25; cursor:not-allowed; }
+  .year-nav .y-label{ font-family:'Noto Serif KR',serif; font-weight:900; font-size:17px; }
+  .year-nav .new-year-btn{
+    margin-left:4px; font-size:11px; border:1px dashed var(--sage-deep); color:var(--sage-deep);
+    background:none; border-radius:14px; padding:5px 11px; cursor:pointer; font-family:inherit; font-weight:600;
+  }
+
+  .loading-screen{
+    position:fixed; inset:0; background:var(--paper); display:flex; align-items:center; justify-content:center;
+    flex-direction:column; gap:10px; font-family:'Noto Serif KR',serif; font-weight:700; z-index:999;
+  }
+  .loading-screen.hide{ display:none; }
+
+  /* Ledger index tabs (signature element) */
+  .index-strip{
+    display:flex; overflow-x:auto; gap:0; margin-bottom:16px;
+    border-bottom:2px solid var(--ink);
+    -webkit-overflow-scrolling:touch;
+  }
+  .tab{
+    flex:0 0 auto; min-width:44px; text-align:center; padding:8px 6px 10px;
+    font-size:12px; font-weight:600; color:var(--ink-soft); cursor:pointer;
+    border-right:1px solid var(--paper-line); position:relative; background:transparent;
+    font-family:'Noto Serif KR',serif;
+  }
+  .tab:last-child{border-right:none;}
+  .tab .dot{
+    display:block; width:6px; height:6px; border-radius:50%; margin:3px auto 0;
+    background:var(--paper-line);
+  }
+  .tab.done .dot{background:var(--sage-deep);}
+  .tab.deficit .dot{background:var(--rust);}
+  .tab.active{color:var(--ink); background:var(--card);}
+  .tab.active::after{
+    content:''; position:absolute; left:0; right:0; bottom:-2px; height:2px; background:var(--ink);
+  }
+
+  /* Overview table - "월별 한눈에 보기" */
+  .overview{
+    background:var(--card); border:1px solid var(--paper-line); border-radius:12px;
+    overflow:hidden; margin-bottom:20px; box-shadow:0 3px 0 var(--shadow);
+  }
+  .overview-head{
+    font-family:'Noto Serif KR',serif; font-weight:700; font-size:13px;
+    padding:10px 12px; border-bottom:1px solid var(--paper-line); background:var(--gold-soft);
+    display:flex; justify-content:space-between; align-items:center;
+  }
+  table.ov{width:100%; border-collapse:collapse; font-size:11px;}
+  table.ov th{
+    text-align:right; padding:6px 8px; color:var(--ink-soft); font-weight:600;
+    border-bottom:1px solid var(--paper-line); font-size:10px;
+  }
+  table.ov th:first-child, table.ov td:first-child{text-align:left;}
+  table.ov td{
+    text-align:right; padding:7px 8px; border-bottom:1px solid var(--paper-line);
+    cursor:pointer;
+  }
+  table.ov tr:last-child td{border-bottom:none;}
+  table.ov tr:active{background:var(--gold-soft);}
+  table.ov td.month{font-weight:700; font-family:'Noto Serif KR',serif;}
+  table.ov td.status{text-align:center; font-size:12px;}
+  .empty-row td{color:var(--paper-line); font-style:italic;}
+
+  /* Month detail card */
+  .detail{
+    background:var(--card); border:1px solid var(--paper-line); border-radius:14px;
+    padding:16px 14px; margin-bottom:16px; position:relative; box-shadow:0 4px 0 var(--shadow);
+  }
+  .detail h2{
+    font-family:'Noto Serif KR',serif; font-size:19px; margin:0 0 12px; display:flex; align-items:baseline; gap:8px;
+  }
+  .detail h2 .yr{font-size:11px; color:var(--ink-soft); font-weight:400;}
+
+  .stamp{
+    position:absolute; top:14px; right:14px;
+    width:64px; height:64px; border-radius:50%;
+    border:3px solid var(--rust); color:var(--rust);
+    display:flex; align-items:center; justify-content:center; text-align:center;
+    font-family:'Noto Serif KR',serif; font-weight:900; font-size:12px; line-height:1.2;
+    transform:rotate(-14deg); opacity:0.88;
+    box-shadow:0 0 0 1px var(--rust) inset;
+  }
+
+  .flow-row{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:6px 0; font-size:13px; border-bottom:1px dotted var(--paper-line);
+  }
+  .flow-row .k{color:var(--ink-soft); font-size:12px;}
+  .flow-row .v{font-weight:600;}
+  .flow-row.total .v{font-size:15px;}
+  .flow-row.balance{border-bottom:none; padding-top:10px;}
+  .flow-row.balance .k{font-family:'Noto Serif KR',serif; font-weight:700; color:var(--ink);}
+  .flow-row.balance .v{font-size:19px; font-family:'Noto Serif KR',serif; font-weight:900;}
+
+  .section-lbl{
+    font-size:11px; font-weight:700; color:var(--ink-soft); margin:14px 0 6px;
+    display:flex; justify-content:space-between; align-items:center; letter-spacing:0.4px;
+  }
+  .add-btn{
+    border:1px solid var(--sage-deep); background:none; color:var(--sage-deep);
+    border-radius:6px; font-size:10.5px; padding:3px 8px; cursor:pointer; font-family:inherit;
+  }
+  .add-btn:disabled{opacity:0.3; cursor:not-allowed;}
+
+  ul.items{list-style:none; margin:0; padding:0;}
+  ul.items li{
+    display:flex; justify-content:space-between; align-items:center; gap:6px;
+    padding:5px 0; font-size:12.5px; border-bottom:1px solid var(--paper-line);
+  }
+  ul.items li .desc{flex:1; color:var(--ink);}
+  ul.items li .desc .date{color:var(--ink-soft); margin-right:4px;}
+  ul.items li .amt{font-weight:600; white-space:nowrap;}
+  ul.items li .del{
+    background:none; border:none; color:var(--rust); font-size:14px; cursor:pointer; padding:0 2px;
+    line-height:1;
+  }
+  ul.items li .del:disabled{opacity:0; pointer-events:none;}
+  .no-item{font-size:11.5px; color:var(--paper-line); font-style:italic; padding:6px 0;}
+
+  /* checklist */
+  .checklist{margin-top:14px;}
+  .chk-item{
+    display:flex; align-items:center; gap:9px; padding:7px 2px;
+    border-bottom:1px solid var(--paper-line); font-size:12.5px;
+  }
+  .chk-item:last-child{border-bottom:none;}
+  .chk-item input[type=checkbox]{
+    width:17px; height:17px; accent-color:var(--sage-deep); flex-shrink:0; cursor:pointer;
+  }
+  .chk-item.checked span{text-decoration:line-through; color:var(--ink-soft);}
+  .chk-item input:disabled{cursor:not-allowed;}
+
+  .note{
+    font-size:11px; color:var(--ink-soft); background:var(--paper);
+    border-left:2px solid var(--gold); padding:6px 8px; margin-top:10px; border-radius:0 6px 6px 0;
+    line-height:1.5;
+  }
+
+  /* modal */
+  .modal-bg{
+    position:fixed; inset:0; background:rgba(43,42,36,0.5); display:none;
+    align-items:center; justify-content:center; z-index:50; padding:20px;
+  }
+  .modal-bg.show{display:flex;}
+  .modal{
+    background:var(--card); border-radius:14px; padding:20px; width:100%; max-width:340px;
+    box-shadow:0 10px 30px rgba(0,0,0,0.3);
+  }
+  .modal h3{font-family:'Noto Serif KR',serif; margin:0 0 12px; font-size:16px;}
+  .modal input, .modal select{
+    width:100%; padding:9px 10px; margin-bottom:10px; border:1px solid var(--paper-line);
+    border-radius:8px; font-family:inherit; font-size:13px; background:#fff;
+  }
+  .modal .row-btns{display:flex; gap:8px; margin-top:6px;}
+  .modal button.primary{
+    flex:1; background:var(--sage-deep); color:#fff; border:none; border-radius:8px;
+    padding:10px; font-family:inherit; font-weight:600; font-size:13px; cursor:pointer;
+  }
+  .modal button.secondary{
+    flex:1; background:none; border:1px solid var(--paper-line); border-radius:8px;
+    padding:10px; font-family:inherit; font-size:13px; cursor:pointer; color:var(--ink-soft);
+  }
+  .modal .hint{font-size:11px; color:var(--ink-soft); margin:-4px 0 12px;}
+
+  footer{
+    text-align:center; font-size:10.5px; color:var(--ink-soft); margin-top:24px; line-height:1.6;
+  }
+</style>
+</head>
+<body>
+<div class="loading-screen" id="loadingScreen"><div>📔</div><div>불러오는 중...</div></div>
+<div class="wrap">
+
+  <header class="top">
+    <div class="title-block">
+      <h1 id="yearTitle">교사회비 장부</h1>
+      <div class="sub">월별 정산 체크리스트 · 한눈에 보기</div>
+    </div>
+    <button id="adminBtn" onclick="toggleAdmin()">🔒 보기 전용</button>
+  </header>
+
+  <div class="banner" id="banner">
+    이 장부는 함께 보는 사람 모두에게 공유돼요. <b>체크·수정·삭제는 관리자만</b> 할 수 있고, 나머지 분들은 조회만 가능합니다.
+  </div>
+
+  <div class="year-nav" id="yearNav"></div>
+
+  <div class="summary">
+    <div class="sum-card"><div class="lbl">연간 총수입</div><div class="val pos" id="sumIncome">-</div></div>
+    <div class="sum-card"><div class="lbl">연간 총지출</div><div class="val" id="sumExpense">-</div></div>
+    <div class="sum-card balance"><div class="lbl">현재 잔액</div><div class="val" id="sumBalance">-</div></div>
+  </div>
+
+  <div class="index-strip" id="indexStrip"></div>
+
+  <div class="overview">
+    <div class="overview-head">
+      <span>📖 월별 정산 한눈에 보기</span>
+      <span style="font-size:10px;font-weight:400;color:var(--ink-soft)">탭하면 상세보기</span>
+    </div>
+    <table class="ov">
+      <thead>
+        <tr><th>월</th><th>이월금</th><th>총수입</th><th>총지출</th><th>잔액</th><th>체크</th></tr>
+      </thead>
+      <tbody id="ovBody"></tbody>
+    </table>
+  </div>
+
+  <div class="detail" id="detail"></div>
+
+  <footer>교사회비 정산 장부 · 관리자 전용 편집 잠금 적용</footer>
+</div>
+
+<!-- PIN modal -->
+<div class="modal-bg" id="pinModal">
+  <div class="modal">
+    <h3 id="pinTitle">🔑 관리자 PIN 입력</h3>
+    <div class="hint" id="pinHint">체크·수정·삭제를 하려면 관리자 PIN이 필요해요.</div>
+    <input type="password" inputmode="numeric" id="pinInput" placeholder="PIN 4자리">
+    <div class="row-btns">
+      <button class="secondary" onclick="closeModal('pinModal')">취소</button>
+      <button class="primary" onclick="submitPin()">확인</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add income modal -->
+<div class="modal-bg" id="incomeModal">
+  <div class="modal">
+    <h3>💰 수입 항목 추가</h3>
+    <input type="text" id="incDesc" placeholder="항목명 (예: 교사회비 입금)">
+    <input type="number" id="incAmt" placeholder="금액 (원)">
+    <div class="row-btns">
+      <button class="secondary" onclick="closeModal('incomeModal')">취소</button>
+      <button class="primary" onclick="submitIncome()">추가</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add expense modal -->
+<div class="modal-bg" id="expenseModal">
+  <div class="modal">
+    <h3>🧾 지출 항목 추가</h3>
+    <input type="text" id="expDate" placeholder="날짜 (예: 1/15)">
+    <input type="text" id="expDesc" placeholder="내역 (예: 원두 구입)">
+    <input type="number" id="expAmt" placeholder="금액 (원)">
+    <div class="row-btns">
+      <button class="secondary" onclick="closeModal('expenseModal')">취소</button>
+      <button class="primary" onclick="submitExpense()">추가</button>
+    </div>
+  </div>
+</div>
+
+<!-- PIN change modal -->
+<div class="modal-bg" id="pinChangeModal">
+  <div class="modal">
+    <h3>🔑 관리자 PIN 변경</h3>
+    <div class="hint">새 PIN을 설정하면 모두에게 공유된 장부에 즉시 적용돼요.</div>
+    <input type="password" inputmode="numeric" id="newPinInput" placeholder="새 PIN 4자리 이상">
+    <div class="row-btns">
+      <button class="secondary" onclick="closeModal('pinChangeModal')">취소</button>
+      <button class="primary" onclick="submitPinChange()">변경</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const MONTHS = [1,2,3,4,5,6,7,8,9,10,11,12];
+const DEFAULT_CHECKLIST = () => [
+  {label:'회비 입금 확인', done:false},
+  {label:'영수증·지출내역 정리', done:false},
+  {label:'장부(정산표) 작성', done:false},
+  {label:'잔액 계산 확인', done:false},
+  {label:'정산 결과 공유 완료', done:false},
+];
+
+function blankMonth(){
+  return { carryover:null, income:[], expense:[], checklist:DEFAULT_CHECKLIST(), note:'' };
+}
+function blankYearMonths(){
+  const months = {};
+  MONTHS.forEach(m => months[m] = blankMonth());
+  return { months };
+}
+
+// 업로드된 2026년_교사회비.hwp 파일에서 추출·검증한 실제 데이터 (1~6월)
+const DEFAULT_DATA = {
+  pin: "1234",
+  years: {
+    2026: { months: {
+      1: { carryover:-44600, income:[{desc:'교사회비 (1~3월분)',amount:490000},{desc:'교사식비 (1~3월분)',amount:330000}],
+        expense:[
+          {date:'1/3',desc:'빵',amount:29800},{date:'1/5',desc:'얼음',amount:4000},{date:'1/8',desc:'생수',amount:12290},
+          {date:'1/11',desc:'우유',amount:6200},{date:'1/12',desc:'원두',amount:50000},{date:'1/24',desc:'빵',amount:37900},
+          {date:'1/24',desc:'우유',amount:6200},{date:'1/25',desc:'우유',amount:3200},{date:'1/29',desc:'당근거래(전자레인지)',amount:10000},
+          {date:'1/31',desc:'우유·호떡·물·귤',amount:63610}
+        ], checklist:DEFAULT_CHECKLIST(), note:'' },
+      2: { carryover:552200, income:[{desc:'교사회비 입금',amount:100000}],
+        expense:[
+          {date:'2/2',desc:'원두',amount:50000},{date:'2/7',desc:'목사님 설 선물',amount:200000},{date:'2/8',desc:'월례회 간식(맥모닝)',amount:80900},
+          {date:'2/18',desc:'원두',amount:28700},{date:'2/20',desc:'빵·바나나·귤·우유',amount:32730},{date:'2/21',desc:'우유',amount:13800},
+          {date:'2/21',desc:'딸기+블루베리 쨈',amount:10740},{date:'2/24',desc:'원두',amount:53500}
+        ], checklist:DEFAULT_CHECKLIST(), note:'' },
+      3: { carryover:181830, income:[{desc:'교사회비 입금',amount:360000}],
+        expense:[
+          {date:'3/1',desc:'빵',amount:13500},{date:'3/5',desc:'바닐라파우더',amount:32870},{date:'3/5',desc:'아이스음료컵',amount:12600},
+          {date:'3/7',desc:'교사회식(옛날그집)',amount:150000},{date:'3/7',desc:'회의 미참석 음료',amount:30000},{date:'3/7',desc:'교사음료(메가)',amount:27300},
+          {date:'3/8',desc:'도넛',amount:25500},{date:'3/12',desc:'딸기원액',amount:10100},{date:'3/13',desc:'우유',amount:11720},
+          {date:'3/16',desc:'아침빵',amount:28050},{date:'3/16',desc:'원두',amount:42800},{date:'3/19',desc:'물',amount:11990},
+          {date:'3/21',desc:'음료컵',amount:6900},{date:'3/28',desc:'우유',amount:6200}
+        ], checklist:DEFAULT_CHECKLIST(), note:'태안답사 정원정 집사님 후원 50,000원은 회비에 포함되지 않음(교사 MT 별도 지원금)' },
+      4: { carryover:132300, income:[{desc:'교사회비',amount:260000},{desc:'교회 식비지원',amount:330000}],
+        expense:[
+          {date:'4/2',desc:'원두 구입',amount:48500},{date:'4/4',desc:'구황작물빵',amount:29420},{date:'4/9',desc:'원두',amount:40000},
+          {date:'4/9',desc:'베이글 크림치즈',amount:22960},{date:'4/17',desc:'생수',amount:12180},{date:'4/17',desc:'아이스컵 구매',amount:12500},
+          {date:'4/19',desc:'우유',amount:6200},{date:'4/19',desc:'김밥',amount:48000},{date:'4/21',desc:'돔뚜껑',amount:7710},
+          {date:'4/21',desc:'바닐라시럽',amount:17800},{date:'4/25',desc:'우유',amount:12500},{date:'4/26',desc:'도넛',amount:27200}
+        ], checklist:DEFAULT_CHECKLIST(), note:'' },
+      5: { carryover:437330, income:[{desc:'교사회비',amount:130000}],
+        expense:[
+          {date:'5/1',desc:'우유',amount:11720},{date:'5/1',desc:'간식',amount:17660},{date:'5/6',desc:'원두',amount:104200},
+          {date:'5/9',desc:'우유',amount:6200},{date:'5/9',desc:'비밀베이커리',amount:44800},{date:'5/11',desc:'스승의날 선물(선풍기)',amount:138000},
+          {date:'5/13',desc:'물·페파민트',amount:18080},{date:'5/15',desc:'파리바게트',amount:21700},{date:'5/16',desc:'우유',amount:6200},
+          {date:'5/16',desc:'얼음',amount:4000},{date:'5/19',desc:'아이스컵 및 아이스티',amount:51980},{date:'5/19',desc:'우유',amount:6400},
+          {date:'5/28',desc:'원두',amount:70000},{date:'5/29',desc:'비밀베이커리',amount:37900}
+        ], checklist:DEFAULT_CHECKLIST(), note:'' },
+      6: { carryover:28490, income:[{desc:'회비',amount:60000}],
+        expense:[
+          {date:'6/6',desc:'우유',amount:6200},{date:'6/12',desc:'아이스티파우더',amount:24750},{date:'6/14',desc:'우유',amount:12400},
+          {date:'6/17',desc:'페파민트 차',amount:5900},{date:'6/22',desc:'베이글 샌드위치·우유',amount:48300},{date:'6/27',desc:'물',amount:5340},
+          {date:'6/28',desc:'우유',amount:6200}
+        ], checklist:DEFAULT_CHECKLIST(), note:'6월은 지출이 수입보다 많아 잔액이 적자(-20,600원)로 7월에 이월돼요.' },
+      7: { carryover:-20600, income:[], expense:[], checklist:DEFAULT_CHECKLIST(), note:'' },
+      8: { carryover:null, income:[], expense:[], checklist:DEFAULT_CHECKLIST(), note:'' },
+      9: { carryover:null, income:[], expense:[], checklist:DEFAULT_CHECKLIST(), note:'' },
+      10:{ carryover:null, income:[], expense:[], checklist:DEFAULT_CHECKLIST(), note:'' },
+      11:{ carryover:null, income:[], expense:[], checklist:DEFAULT_CHECKLIST(), note:'' },
+      12:{ carryover:null, income:[], expense:[], checklist:DEFAULT_CHECKLIST(), note:'' },
+    } }
+  }
+};
+
+/* ====== Firebase (캠핑 체크리스트 프로젝트 재사용) ====== */
+const firebaseConfig = {
+  apiKey: "AIzaSyA9uHi1Myi1ubA2PFwbq--4KcHvjHg1IhM",
+  authDomain: "camping-checklist-fd1b0.firebaseapp.com",
+  projectId: "camping-checklist-fd1b0",
+  storageBucket: "camping-checklist-fd1b0.firebasestorage.app",
+  messagingSenderId: "493498746527",
+  appId: "1:493498746527:web:528b73c2c51b5aa16b84aa"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+const DOC_REF = db.collection('teacher_fee').doc('ledger');
+
+let data = null;
+let isAdmin = false;
+let currentYear = null;
+let activeMonth = null;
+let suppressNextSnapshot = false;
+
+function won(n){
+  if(n===null || n===undefined) return '—';
+  const sign = n<0 ? '-' : '';
+  return sign + Math.abs(n).toLocaleString('ko-KR') + '원';
+}
+
+/* ====== Firestore 연결 ====== */
+auth.signInAnonymously().catch(err=>{
+  console.error(err);
+  alert('연결에 실패했어요. 새로고침 해주세요.');
+});
+
+auth.onAuthStateChanged(user=>{
+  if(!user) return;
+  DOC_REF.onSnapshot(async (snap)=>{
+    if(suppressNextSnapshot){ suppressNextSnapshot = false; return; }
+
+    if(snap.exists){
+      data = snap.data().payload;
+    } else {
+      data = DEFAULT_DATA;
+      saveData(); // 최초 1회 게시 — 실패해도 화면 렌더링은 막지 않음
+    }
+
+    // 현재 선택된 연도가 없거나 삭제됐으면 가장 최신 연도로
+    const years = Object.keys(data.years).map(Number).sort((a,b)=>a-b);
+    if(currentYear === null || !data.years[currentYear]){
+      currentYear = years[years.length-1];
+    }
+    document.getElementById('loadingScreen').classList.add('hide');
+    renderAll();
+  }, (err)=>{
+    console.error(err);
+    document.getElementById('loadingScreen').innerHTML = '<div>⚠️</div><div>연결에 실패했어요. 새로고침 해주세요.</div>';
+  });
+});
+
+async function saveData(){
+  suppressNextSnapshot = true;
+  try{
+    await DOC_REF.set({ payload: data, updatedAt: Date.now() });
+  }catch(e){
+    console.error('save failed', e);
+    alert('저장에 실패했어요. 다시 시도해 주세요.');
+    suppressNextSnapshot = false;
+  }
+}
+
+/* ====== 연도/월 계산 ====== */
+function computeMonth(year, m){
+  const yd = data.years[year];
+  if(!yd) return {incomeTotal:0, expenseTotal:0, carryover:null, totalIncome:null, balance:null, hasData:false};
+  const md = yd.months[m];
+  const incomeTotal = md.income.reduce((s,i)=>s+i.amount,0);
+  const expenseTotal = md.expense.reduce((s,i)=>s+i.amount,0);
+  const carryover = md.carryover;
+  const hasCarry = carryover !== null && carryover !== undefined;
+  const totalIncome = hasCarry ? carryover + incomeTotal : null;
+  const balance = (hasCarry) ? totalIncome - expenseTotal : null;
+  return {incomeTotal, expenseTotal, carryover, totalIncome, balance, hasData: hasCarry || md.income.length>0 || md.expense.length>0};
+}
+
+function resolveAllCarryovers(){
+  const years = Object.keys(data.years).map(Number).sort((a,b)=>a-b);
+  years.forEach((y, idx)=>{
+    // 같은 해 안에서: 빈 이월금을 전월 잔액으로 채움
+    for(let i=1;i<12;i++){
+      const cur = data.years[y].months[i+1];
+      if(cur.carryover === null || cur.carryover === undefined){
+        const prevCalc = computeMonth(y, i);
+        if(prevCalc.balance !== null) cur.carryover = prevCalc.balance;
+      }
+    }
+    // 해가 바뀔 때: 다음 해 1월 이월금을 이번 해 12월 잔액으로 채움
+    const nextYear = years[idx+1];
+    if(nextYear !== undefined && data.years[nextYear]){
+      const jan = data.years[nextYear].months[1];
+      if(jan.carryover === null || jan.carryover === undefined){
+        const decCalc = computeMonth(y, 12);
+        if(decCalc.balance !== null) jan.carryover = decCalc.balance;
+      }
+    }
+  });
+}
+
+function renderAll(){
+  resolveAllCarryovers();
+  document.getElementById('yearTitle').textContent = `${currentYear} 교사회비 장부`;
+  renderYearNav();
+  renderSummary();
+  renderIndexStrip();
+  renderOverview();
+  renderDetail();
+  renderAdminBtn();
+}
+
+function renderYearNav(){
+  const years = Object.keys(data.years).map(Number).sort((a,b)=>a-b);
+  const isLatest = currentYear === years[years.length-1];
+  const isEarliest = currentYear === years[0];
+  const nav = document.getElementById('yearNav');
+  nav.innerHTML = `
+    <button class="arrow" onclick="changeYear(-1)" ${isEarliest?'disabled':''}>‹</button>
+    <span class="y-label">${currentYear}년</span>
+    <button class="arrow" onclick="changeYear(1)" ${isLatest?'disabled':''}>›</button>
+    ${isAdmin && isLatest ? `<button class="new-year-btn" onclick="startNewYear()">+ ${currentYear+1}년 시작</button>` : ''}
+  `;
+}
+
+function changeYear(delta){
+  const target = currentYear + delta;
+  if(!data.years[target]) return;
+  currentYear = target;
+  activeMonth = null;
+  renderAll();
+}
+
+async function startNewYear(){
+  if(!isAdmin) return;
+  const years = Object.keys(data.years).map(Number);
+  const newYear = Math.max(...years) + 1;
+  if(data.years[newYear]) return;
+  if(!confirm(`${newYear}년 장부를 새로 시작할까요?\n작년 12월 잔액이 자동으로 1월 이월금으로 채워져요.`)) return;
+  data.years[newYear] = blankYearMonths();
+  currentYear = newYear;
+  activeMonth = 1;
+  await saveData();
+  renderAll();
+}
+
+function renderSummary(){
+  let inc=0, exp=0, lastBalance=null;
+  MONTHS.forEach(m=>{
+    const c = computeMonth(currentYear, m);
+    if(c.totalIncome!==null) inc += (c.incomeTotal||0);
+    exp += c.expenseTotal||0;
+    if(c.balance!==null) lastBalance = c.balance;
+  });
+  document.getElementById('sumIncome').textContent = won(inc);
+  document.getElementById('sumExpense').textContent = won(exp);
+  const balEl = document.getElementById('sumBalance');
+  balEl.textContent = won(lastBalance);
+  balEl.className = 'val ' + (lastBalance!==null && lastBalance<0 ? 'neg':'pos');
+}
+
+function renderIndexStrip(){
+  const strip = document.getElementById('indexStrip');
+  strip.innerHTML='';
+  MONTHS.forEach(m=>{
+    const c = computeMonth(currentYear, m);
+    const md = data.years[currentYear].months[m];
+    const doneCount = md.checklist.filter(x=>x.done).length;
+    const el = document.createElement('div');
+    el.className = 'tab' + (m===activeMonth?' active':'') + (doneCount===5?' done':'') + (c.balance!==null && c.balance<0 ? ' deficit':'');
+    el.innerHTML = `${m}월<span class="dot"></span>`;
+    el.onclick = ()=>{ activeMonth=m; renderAll(); document.getElementById('detail').scrollIntoView({behavior:'smooth', block:'start'}); };
+    strip.appendChild(el);
+  });
+}
+
+function renderOverview(){
+  const body = document.getElementById('ovBody');
+  body.innerHTML='';
+  MONTHS.forEach(m=>{
+    const c = computeMonth(currentYear, m);
+    const md = data.years[currentYear].months[m];
+    const doneCount = md.checklist.filter(x=>x.done).length;
+    const tr = document.createElement('tr');
+    if(!c.hasData){ tr.classList.add('empty-row'); }
+    tr.innerHTML = `
+      <td class="month">${m}월</td>
+      <td>${won(c.carryover)}</td>
+      <td>${c.totalIncome!==null?won(c.totalIncome):'—'}</td>
+      <td>${c.expenseTotal?won(c.expenseTotal):(c.hasData?'0원':'—')}</td>
+      <td style="font-weight:700;color:${c.balance!==null && c.balance<0 ? 'var(--rust)':'var(--sage-deep)'}">${c.balance!==null?won(c.balance):'—'}</td>
+      <td class="status">${doneCount===5?'✅':(doneCount>0?doneCount+'/5':'⬜')}</td>
+    `;
+    tr.onclick = ()=>{ activeMonth=m; renderAll(); document.getElementById('detail').scrollIntoView({behavior:'smooth', block:'start'}); };
+    body.appendChild(tr);
+  });
+}
+
+function renderDetail(){
+  if(activeMonth===null) activeMonth = MONTHS.find(m=>{
+    const c = computeMonth(currentYear, m);
+    return !c.hasData || data.years[currentYear].months[m].checklist.some(x=>!x.done);
+  }) || 1;
+  const m = activeMonth;
+  const md = data.years[currentYear].months[m];
+  const c = computeMonth(currentYear, m);
+  const doneCount = md.checklist.filter(x=>x.done).length;
+  const box = document.getElementById('detail');
+
+  const incomeItems = md.income.map((it,idx)=>`
+    <li><span class="desc">${it.desc}</span><span class="amt">${won(it.amount)}</span>
+      <button class="del" ${isAdmin?'':'disabled'} onclick="deleteIncome(${m},${idx})">✕</button></li>
+  `).join('') || '<div class="no-item">등록된 수입 항목이 없어요.</div>';
+
+  const expenseItems = md.expense.map((it,idx)=>`
+    <li><span class="desc"><span class="date">${it.date}</span>${it.desc}</span><span class="amt">${won(it.amount)}</span>
+      <button class="del" ${isAdmin?'':'disabled'} onclick="deleteExpense(${m},${idx})">✕</button></li>
+  `).join('') || '<div class="no-item">등록된 지출 항목이 없어요.</div>';
+
+  const checklistItems = md.checklist.map((it,idx)=>`
+    <label class="chk-item ${it.done?'checked':''}">
+      <input type="checkbox" ${it.done?'checked':''} ${isAdmin?'':'disabled'} onchange="toggleCheck(${m},${idx})">
+      <span>${it.label}</span>
+    </label>
+  `).join('');
+
+  box.innerHTML = `
+    ${doneCount===5?'<div class="stamp">정산<br>완료</div>':''}
+    <h2>${m}월 정산 <span class="yr">${currentYear}</span></h2>
+
+    <div class="flow-row"><span class="k">이월금 (전월 잔액)</span><span class="v">${won(c.carryover)}</span></div>
+
+    <div class="section-lbl">수입 내역 <button class="add-btn" ${isAdmin?'':'disabled'} onclick="openIncomeModal(${m})">+ 추가</button></div>
+    <ul class="items">${incomeItems}</ul>
+    <div class="flow-row total"><span class="k">총수입 (이월금 + 신규수입)</span><span class="v pos">${c.totalIncome!==null?won(c.totalIncome):'—'}</span></div>
+
+    <div class="section-lbl">지출 내역 <button class="add-btn" ${isAdmin?'':'disabled'} onclick="openExpenseModal(${m})">+ 추가</button></div>
+    <ul class="items">${expenseItems}</ul>
+    <div class="flow-row total"><span class="k">총지출액</span><span class="v">${won(c.expenseTotal)}</span></div>
+
+    <div class="flow-row balance"><span class="k">남은금액 (익월 이월)</span><span class="v ${c.balance!==null && c.balance<0?'neg':'pos'}">${c.balance!==null?won(c.balance):'—'}</span></div>
+
+    ${md.note?`<div class="note">📌 ${md.note}</div>`:''}
+
+    <div class="checklist">
+      <div class="section-lbl">정산 체크리스트 (${doneCount}/5)</div>
+      ${checklistItems}
+    </div>
+  `;
+}
+
+function renderAdminBtn(){
+  const btn = document.getElementById('adminBtn');
+  const banner = document.getElementById('banner');
+  if(isAdmin){
+    btn.textContent = '🔓 관리자 모드';
+    btn.classList.add('on');
+    banner.innerHTML = '👑 관리자 모드예요. 체크·수정·삭제가 가능합니다. <span style="text-decoration:underline;cursor:pointer" onclick="openPinChange()">PIN 변경</span> · <span style="text-decoration:underline;cursor:pointer" onclick="lockAdmin()">잠그기</span>';
+  }else{
+    btn.textContent = '🔒 보기 전용';
+    btn.classList.remove('on');
+    banner.innerHTML = '이 장부는 함께 보는 사람 모두에게 공유돼요. <b>체크·수정·삭제는 관리자만</b> 할 수 있고, 나머지 분들은 조회만 가능합니다.';
+  }
+}
+
+function toggleAdmin(){
+  if(!data){ alert('아직 불러오는 중이에요. 잠시 후 다시 시도해 주세요.'); return; }
+  if(isAdmin){ lockAdmin(); return; }
+  document.getElementById('pinTitle').textContent = '🔑 관리자 PIN 입력';
+  document.getElementById('pinHint').textContent = '체크·수정·삭제를 하려면 관리자 PIN이 필요해요.';
+  document.getElementById('pinInput').value='';
+  openModal('pinModal');
+}
+function lockAdmin(){ isAdmin=false; renderAll(); }
+
+function submitPin(){
+  const val = document.getElementById('pinInput').value.trim();
+  if(val === (data.pin || '1234')){
+    isAdmin = true;
+    closeModal('pinModal');
+    renderAll();
+  }else{
+    alert('PIN이 올바르지 않아요.');
+  }
+}
+
+function openPinChange(){ document.getElementById('newPinInput').value=''; openModal('pinChangeModal'); }
+async function submitPinChange(){
+  const val = document.getElementById('newPinInput').value.trim();
+  if(val.length < 4){ alert('4자리 이상으로 설정해 주세요.'); return; }
+  data.pin = val;
+  await saveData();
+  closeModal('pinChangeModal');
+  alert('관리자 PIN이 변경됐어요.');
+}
+
+function openModal(id){ document.getElementById(id).classList.add('show'); }
+function closeModal(id){ document.getElementById(id).classList.remove('show'); }
+
+let modalMonth = null;
+function openIncomeModal(m){ if(!isAdmin) return; modalMonth=m; document.getElementById('incDesc').value=''; document.getElementById('incAmt').value=''; openModal('incomeModal'); }
+function openExpenseModal(m){ if(!isAdmin) return; modalMonth=m; document.getElementById('expDate').value=''; document.getElementById('expDesc').value=''; document.getElementById('expAmt').value=''; openModal('expenseModal'); }
+
+async function submitIncome(){
+  const desc = document.getElementById('incDesc').value.trim();
+  const amt = parseInt(document.getElementById('incAmt').value,10);
+  if(!desc || !amt){ alert('항목명과 금액을 입력해 주세요.'); return; }
+  data.years[currentYear].months[modalMonth].income.push({desc, amount:amt});
+  await saveData();
+  closeModal('incomeModal');
+  renderAll();
+}
+async function submitExpense(){
+  const date = document.getElementById('expDate').value.trim();
+  const desc = document.getElementById('expDesc').value.trim();
+  const amt = parseInt(document.getElementById('expAmt').value,10);
+  if(!desc || !amt){ alert('내역과 금액을 입력해 주세요.'); return; }
+  data.years[currentYear].months[modalMonth].expense.push({date:date||'-', desc, amount:amt});
+  await saveData();
+  closeModal('expenseModal');
+  renderAll();
+}
+async function deleteIncome(m, idx){
+  if(!isAdmin) return;
+  if(!confirm('이 수입 항목을 삭제할까요?')) return;
+  data.years[currentYear].months[m].income.splice(idx,1);
+  await saveData();
+  renderAll();
+}
+async function deleteExpense(m, idx){
+  if(!isAdmin) return;
+  if(!confirm('이 지출 항목을 삭제할까요?')) return;
+  data.years[currentYear].months[m].expense.splice(idx,1);
+  await saveData();
+  renderAll();
+}
+async function toggleCheck(m, idx){
+  if(!isAdmin) return;
+  data.years[currentYear].months[m].checklist[idx].done = !data.years[currentYear].months[m].checklist[idx].done;
+  await saveData();
+  renderAll();
+}
+</script>
+</body>
+</html>
