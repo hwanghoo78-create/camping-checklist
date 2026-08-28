@@ -1,4 +1,4 @@
- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
@@ -258,11 +258,18 @@
   th.mem-name-th{ position:sticky; left:0; background:var(--gold-soft); text-align:left !important; z-index:1; }
   .mem-check{
     width:26px; height:26px; border-radius:6px; border:1.5px solid var(--paper-line);
-    display:inline-flex; align-items:center; justify-content:center; cursor:pointer; font-size:12px;
-    background:#fff;
+    display:inline-flex; align-items:center; justify-content:center; cursor:pointer; font-size:10px;
+    background:#fff; font-weight:700;
   }
   .mem-check.paid{ background:var(--sage-deep); border-color:var(--sage-deep); color:#fff; }
+  .mem-check.partial{ background:var(--gold); border-color:var(--gold); color:#fff; font-size:8.5px; }
   .mem-check.readonly{ cursor:default; }
+  .mem-fee{ font-size:9.5px; color:var(--ink-soft); font-weight:400; margin-left:3px; }
+  .mem-fee-edit{ text-decoration:underline dotted; cursor:pointer; }
+  .carry-badge{
+    display:inline-block; font-size:9.5px; background:var(--rust); color:#fff;
+    border-radius:8px; padding:1px 7px; margin-left:6px; cursor:pointer;
+  }
   .mem-status-row td{ text-align:left; font-size:10px; color:var(--ink-soft); padding:2px 7px 8px; border-bottom:1px solid var(--paper-line); }
   .mem-del{ background:none; border:none; color:var(--rust); font-size:12px; cursor:pointer; margin-left:4px; }
   .add-member-btn{
@@ -402,7 +409,8 @@
   </div>
 </div>
 
-<script>const MONTHS = [1,2,3,4,5,6,7,8,9,10,11,12];
+<script>
+const MONTHS = [1,2,3,4,5,6,7,8,9,10,11,12];
 const DEFAULT_CHECKLIST = () => [
   {label:'회비 입금 확인', done:false},
   {label:'영수증·지출내역 정리', done:false},
@@ -506,6 +514,22 @@ function won(n){
 function uid(){ return Math.random().toString(36).slice(2,9); }
 function ensureMembers(){ if(!data.members) data.members = []; }
 function ensurePayments(year){ if(!data.years[year].payments) data.years[year].payments = {}; }
+function ensureCarried(year){ if(!data.years[year].carriedUnpaid) data.years[year].carriedUnpaid = {}; }
+function getPaid(memberId, month){
+  const p = data.years[currentYear].payments[memberId];
+  return p ? (p[month] || 0) : 0;
+}
+function memberYearStats(mem){
+  let totalDue=0, totalPaid=0, fullMonths=[];
+  MONTHS.forEach(m=>{
+    const paid = getPaid(mem.id, m);
+    totalDue += mem.fee;
+    totalPaid += paid;
+    if(paid >= mem.fee) fullMonths.push(m);
+  });
+  const shortfall = Math.max(totalDue - totalPaid, 0);
+  return { totalDue, totalPaid, shortfall, fullMonths };
+}
 
 /* ====== Firestore 연결 ====== */
 auth.signInAnonymously().catch(err=>{
@@ -522,9 +546,10 @@ auth.onAuthStateChanged(user=>{
       data = snap.data().payload;
     } else {
       data = DEFAULT_DATA;
-      saveData();
+      saveData(); // 최초 1회 게시 — 실패해도 화면 렌더링은 막지 않음
     }
 
+    // 현재 선택된 연도가 없거나 삭제됐으면 가장 최신 연도로
     const years = Object.keys(data.years).map(Number).sort((a,b)=>a-b);
     if(currentYear === null || !data.years[currentYear]){
       currentYear = years[years.length-1];
@@ -565,6 +590,8 @@ function computeMonth(year, m){
 function resolveAllCarryovers(){
   const years = Object.keys(data.years).map(Number).sort((a,b)=>a-b);
   years.forEach((y, idx)=>{
+    // 같은 해 안에서: 실제 입출금 내역이 있는 달 "바로 다음 달"까지만 이월금을 자동으로 채움
+    // (아직 손대지 않은 먼 미래 달까지 계속 이어서 채우지 않도록 여기서 멈춤)
     for(let i=1;i<12;i++){
       const prevMonth = data.years[y].months[i];
       const prevHasActivity = prevMonth.income.length>0 || prevMonth.expense.length>0;
@@ -574,6 +601,7 @@ function resolveAllCarryovers(){
         if(prevCalc.balance !== null) cur.carryover = prevCalc.balance;
       }
     }
+    // 해가 바뀔 때: 이번 해 12월에 실제 내역이 있을 때만 다음 해 1월 이월금을 채움
     const nextYear = years[idx+1];
     if(nextYear !== undefined && data.years[nextYear]){
       const dec = data.years[y].months[12];
@@ -590,6 +618,7 @@ function resolveAllCarryovers(){
 function renderAll(){
   ensureMembers();
   ensurePayments(currentYear);
+  ensureCarried(currentYear);
   resolveAllCarryovers();
   document.getElementById('yearTitle').textContent = `${currentYear} 교사회비 장부`;
   renderYearNav();
@@ -625,14 +654,37 @@ function changeYear(delta){
 async function startNewYear(){
   if(!isAdmin) return;
   const years = Object.keys(data.years).map(Number);
-  const newYear = Math.max(...years) + 1;
+  const prevYear = Math.max(...years);
+  const newYear = prevYear + 1;
   if(data.years[newYear]) return;
-  if(!confirm(`${newYear}년 장부를 새로 시작할까요?\n작년 12월 잔액이 자동으로 1월 이월금으로 채워져요.`)) return;
+  if(!confirm(`${newYear}년 장부를 새로 시작할까요?\n작년 12월 잔액이 자동으로 1월 이월금으로, 교사별 전년도 미납금도 자동으로 이월돼요.`)) return;
   data.years[newYear] = blankYearMonths();
+  data.years[newYear].payments = {};
+  ensureCarried(prevYear);
+  ensurePayments(prevYear);
+  data.years[newYear].carriedUnpaid = {};
+  ensureMembers();
+  data.members.forEach(mem=>{
+    const prevCarry = data.years[prevYear].carriedUnpaid[mem.id] || 0;
+    const stats = memberYearStatsFor(prevYear, mem);
+    const total = prevCarry + stats.shortfall;
+    if(total > 0) data.years[newYear].carriedUnpaid[mem.id] = total;
+  });
   currentYear = newYear;
   activeMonth = 1;
   await saveData();
   renderAll();
+}
+
+function memberYearStatsFor(year, mem){
+  let totalDue=0, totalPaid=0;
+  MONTHS.forEach(m=>{
+    const p = data.years[year].payments && data.years[year].payments[mem.id];
+    const paid = p ? (p[m] || 0) : 0;
+    totalDue += mem.fee;
+    totalPaid += paid;
+  });
+  return { shortfall: Math.max(totalDue - totalPaid, 0) };
 }
 
 function renderSummary(){
@@ -666,15 +718,21 @@ function renderIndexStrip(){
 }
 
 function memberPaidMonths(memberId){
-  const payments = data.years[currentYear].payments[memberId] || {};
-  return MONTHS.filter(m => payments[m]);
+  const mem = data.members.find(m=>m.id===memberId);
+  return MONTHS.filter(m => getPaid(memberId, m) >= mem.fee);
 }
-function memberStatusText(memberId){
-  const paid = memberPaidMonths(memberId);
-  if(paid.length === 0) return '납부 내역 없음';
-  const maxMonth = Math.max(...paid);
-  const allBefore = MONTHS.slice(0, maxMonth).every(m => paid.includes(m));
-  return allBefore ? `${maxMonth}월까지 납부완료` : `${maxMonth}월까지 납부 (중간 누락 있음)`;
+function memberStatusText(mem){
+  const stats = memberYearStats(mem);
+  const carried = data.years[currentYear].carriedUnpaid[mem.id] || 0;
+  const totalOwed = carried + stats.shortfall;
+  const paidMonths = memberPaidMonths(mem.id);
+
+  if(totalOwed === 0){
+    const maxMonth = paidMonths.length ? Math.max(...paidMonths) : 0;
+    return maxMonth ? `${maxMonth}월까지 완납` : '아직 납부 없음';
+  }
+  const carryPart = carried > 0 ? `전년도 미납 ${won(carried)} 포함 ` : '';
+  return `${carryPart}미수금 ${won(totalOwed)}`;
 }
 
 function renderMemberSection(){
@@ -690,16 +748,24 @@ function renderMemberSection(){
 
   const headerCols = MONTHS.map(m=>`<th>${m}월</th>`).join('');
   const rows = data.members.map(mem=>{
+    const carried = data.years[currentYear].carriedUnpaid[mem.id] || 0;
     const cells = MONTHS.map(m=>{
-      const paid = !!(data.years[currentYear].payments[mem.id] && data.years[currentYear].payments[mem.id][m]);
-      return `<td><div class="mem-check ${paid?'paid':''} ${isAdmin?'':'readonly'}" onclick="${isAdmin?`togglePayment('${mem.id}',${m})`:''}">${paid?'✓':''}</div></td>`;
+      const paid = getPaid(mem.id, m);
+      let cls = '', label = '';
+      if(paid >= mem.fee && mem.fee > 0){ cls='paid'; label='✓'; }
+      else if(paid > 0){ cls='partial'; label=(paid/10000).toFixed(paid%10000===0?0:1)+'만'; }
+      return `<td><div class="mem-check ${cls} ${isAdmin?'':'readonly'}" onclick="${isAdmin?`setPayment('${mem.id}',${m})`:''}">${label}</div></td>`;
     }).join('');
     return `
       <tr>
-        <td class="mem-name-cell">${mem.name}${isAdmin?`<button class="mem-del" onclick="deleteMember('${mem.id}')">✕</button>`:''}</td>
+        <td class="mem-name-cell">${mem.name}
+          <span class="mem-fee ${isAdmin?'mem-fee-edit':''}" ${isAdmin?`onclick="editFee('${mem.id}')"`:''}>(월${(mem.fee/10000)}만)</span>
+          ${isAdmin?`<button class="mem-del" onclick="deleteMember('${mem.id}')">✕</button>`:''}
+          ${carried>0?`<span class="carry-badge" ${isAdmin?`onclick="editCarried('${mem.id}')"`:''}>전년미납 ${won(carried)}</span>`:''}
+        </td>
         ${cells}
       </tr>
-      <tr class="mem-status-row"><td colspan="${MONTHS.length+1}">📌 ${memberStatusText(mem.id)}</td></tr>`;
+      <tr class="mem-status-row"><td colspan="${MONTHS.length+1}">📌 ${memberStatusText(mem)}</td></tr>`;
   }).join('');
 
   box.innerHTML = `
@@ -716,8 +782,37 @@ function addMember(){
   if(!isAdmin) return;
   const name = prompt('교사 이름을 입력하세요');
   if(!name || !name.trim()) return;
+  const feeStr = prompt(`${name.trim()} 교사님의 월 회비를 입력하세요 (원)`, '10000');
+  const fee = parseInt(feeStr, 10);
+  if(!fee || fee <= 0){ alert('올바른 금액을 입력해주세요.'); return; }
   ensureMembers();
-  data.members.push({ id: uid(), name: name.trim() });
+  data.members.push({ id: uid(), name: name.trim(), fee });
+  saveData();
+  renderAll();
+}
+
+function editFee(memberId){
+  if(!isAdmin) return;
+  const mem = data.members.find(m=>m.id===memberId);
+  if(!mem) return;
+  const feeStr = prompt(`${mem.name} 교사님 월 회비 수정 (원)`, mem.fee);
+  const fee = parseInt(feeStr, 10);
+  if(!fee || fee <= 0) return;
+  mem.fee = fee;
+  saveData();
+  renderAll();
+}
+
+function editCarried(memberId){
+  if(!isAdmin) return;
+  const mem = data.members.find(m=>m.id===memberId);
+  if(!mem) return;
+  const cur = data.years[currentYear].carriedUnpaid[memberId] || 0;
+  const valStr = prompt(`${mem.name} 교사님 전년도 이월 미납금 수정 (0을 입력하면 정산완료 처리)`, cur);
+  if(valStr === null) return;
+  const val = parseInt(valStr, 10) || 0;
+  if(val <= 0) delete data.years[currentYear].carriedUnpaid[memberId];
+  else data.years[currentYear].carriedUnpaid[memberId] = val;
   saveData();
   renderAll();
 }
@@ -728,17 +823,26 @@ function deleteMember(id){
   if(!mem) return;
   if(!confirm(`"${mem.name}" 교사를 명단에서 삭제할까요?\n납부 기록도 함께 사라져요.`)) return;
   data.members = data.members.filter(m=>m.id!==id);
-  Object.values(data.years).forEach(y=>{ if(y.payments) delete y.payments[id]; });
+  Object.values(data.years).forEach(y=>{
+    if(y.payments) delete y.payments[id];
+    if(y.carriedUnpaid) delete y.carriedUnpaid[id];
+  });
   saveData();
   renderAll();
 }
 
-function togglePayment(memberId, month){
+function setPayment(memberId, month){
   if(!isAdmin) return;
+  const mem = data.members.find(m=>m.id===memberId);
   ensurePayments(currentYear);
+  const cur = getPaid(memberId, month);
+  const valStr = prompt(`${mem.name} 교사님 ${month}월 납부액 (회비 ${won(mem.fee)})\n0을 입력하면 미납 처리`, cur || mem.fee);
+  if(valStr === null) return;
+  const val = parseInt(valStr, 10) || 0;
   const p = data.years[currentYear].payments;
   if(!p[memberId]) p[memberId] = {};
-  p[memberId][month] = !p[memberId][month];
+  if(val <= 0) delete p[memberId][month];
+  else p[memberId][month] = val;
   saveData();
   renderAll();
 }
