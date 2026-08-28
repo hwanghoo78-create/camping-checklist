@@ -270,6 +270,9 @@
     display:inline-block; font-size:9.5px; background:var(--rust); color:#fff;
     border-radius:8px; padding:1px 7px; margin-left:6px; cursor:pointer;
   }
+  .carry-badge.add{
+    background:none; color:var(--sage-deep); border:1px dashed var(--sage-deep);
+  }
   .mem-status-row td{ text-align:left; font-size:10px; color:var(--ink-soft); padding:2px 7px 8px; border-bottom:1px solid var(--paper-line); }
   .mem-del{ background:none; border:none; color:var(--rust); font-size:12px; cursor:pointer; margin-left:4px; }
   .add-member-btn{
@@ -761,7 +764,9 @@ function renderMemberSection(){
         <td class="mem-name-cell">${mem.name}
           <span class="mem-fee ${isAdmin?'mem-fee-edit':''}" ${isAdmin?`onclick="editFee('${mem.id}')"`:''}>(월${(mem.fee/10000)}만)</span>
           ${isAdmin?`<button class="mem-del" onclick="deleteMember('${mem.id}')">✕</button>`:''}
-          ${carried>0?`<span class="carry-badge" ${isAdmin?`onclick="editCarried('${mem.id}')"`:''}>전년미납 ${won(carried)}</span>`:''}
+          ${carried>0
+            ? `<span class="carry-badge" ${isAdmin?`onclick="editCarried('${mem.id}')"`:''}>전년미납 ${won(carried)}</span>`
+            : (isAdmin ? `<span class="carry-badge add" onclick="editCarried('${mem.id}')">+ 전년미수금</span>` : '')}
         </td>
         ${cells}
       </tr>
