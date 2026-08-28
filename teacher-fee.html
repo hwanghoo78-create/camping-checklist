@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+ <!DOCTYPE html>
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
@@ -233,6 +233,45 @@
     line-height:1.5;
   }
 
+  /* 교사별 회비 납부 현황 */
+  .member-section{
+    background:var(--card); border:1px solid var(--paper-line); border-radius:12px;
+    overflow:hidden; margin-bottom:20px; box-shadow:0 3px 0 var(--shadow);
+  }
+  .member-head{
+    font-family:'Noto Serif KR',serif; font-weight:700; font-size:13px;
+    padding:10px 12px; border-bottom:1px solid var(--paper-line); background:var(--gold-soft);
+    display:flex; justify-content:space-between; align-items:center;
+  }
+  .member-table-wrap{ overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  table.mem{ border-collapse:collapse; font-size:10.5px; white-space:nowrap; }
+  table.mem th{
+    padding:6px 7px; color:var(--ink-soft); font-weight:600; text-align:center;
+    border-bottom:1px solid var(--paper-line); font-size:9.5px;
+  }
+  table.mem td{ text-align:center; padding:6px 7px; border-bottom:1px solid var(--paper-line); }
+  table.mem tr:last-child td{ border-bottom:none; }
+  .mem-name-cell{
+    text-align:left; font-weight:700; position:sticky; left:0; background:var(--card);
+    padding-right:10px !important; min-width:70px;
+  }
+  th.mem-name-th{ position:sticky; left:0; background:var(--gold-soft); text-align:left !important; z-index:1; }
+  .mem-check{
+    width:26px; height:26px; border-radius:6px; border:1.5px solid var(--paper-line);
+    display:inline-flex; align-items:center; justify-content:center; cursor:pointer; font-size:12px;
+    background:#fff;
+  }
+  .mem-check.paid{ background:var(--sage-deep); border-color:var(--sage-deep); color:#fff; }
+  .mem-check.readonly{ cursor:default; }
+  .mem-status-row td{ text-align:left; font-size:10px; color:var(--ink-soft); padding:2px 7px 8px; border-bottom:1px solid var(--paper-line); }
+  .mem-del{ background:none; border:none; color:var(--rust); font-size:12px; cursor:pointer; margin-left:4px; }
+  .add-member-btn{
+    border:1px solid var(--sage-deep); background:none; color:var(--sage-deep);
+    border-radius:6px; font-size:10.5px; padding:3px 8px; cursor:pointer; font-family:inherit;
+  }
+  .add-member-btn:disabled{ opacity:0.3; cursor:not-allowed; }
+  .no-member{ padding:16px; text-align:center; color:var(--paper-line); font-style:italic; font-size:12px; }
+
   /* modal */
   .modal-bg{
     position:fixed; inset:0; background:rgba(43,42,36,0.5); display:none;
@@ -289,6 +328,8 @@
   </div>
 
   <div class="index-strip" id="indexStrip"></div>
+
+  <div class="member-section" id="memberSection"></div>
 
   <div class="overview">
     <div class="overview-head">
@@ -361,8 +402,7 @@
   </div>
 </div>
 
-<script>
-  const MONTHS = [1,2,3,4,5,6,7,8,9,10,11,12];
+<script>const MONTHS = [1,2,3,4,5,6,7,8,9,10,11,12];
 const DEFAULT_CHECKLIST = () => [
   {label:'회비 입금 확인', done:false},
   {label:'영수증·지출내역 정리', done:false},
@@ -383,6 +423,7 @@ function blankYearMonths(){
 // 업로드된 2026년_교사회비.hwp 파일에서 추출·검증한 실제 데이터 (1~6월)
 const DEFAULT_DATA = {
   pin: "1234",
+  members: [],
   years: {
     2026: { months: {
       1: { carryover:-44600, income:[{desc:'교사회비 (1~3월분)',amount:490000},{desc:'교사식비 (1~3월분)',amount:330000}],
@@ -462,6 +503,9 @@ function won(n){
   const sign = n<0 ? '-' : '';
   return sign + Math.abs(n).toLocaleString('ko-KR') + '원';
 }
+function uid(){ return Math.random().toString(36).slice(2,9); }
+function ensureMembers(){ if(!data.members) data.members = []; }
+function ensurePayments(year){ if(!data.years[year].payments) data.years[year].payments = {}; }
 
 /* ====== Firestore 연결 ====== */
 auth.signInAnonymously().catch(err=>{
@@ -478,10 +522,9 @@ auth.onAuthStateChanged(user=>{
       data = snap.data().payload;
     } else {
       data = DEFAULT_DATA;
-      saveData(); // 최초 1회 게시 — 실패해도 화면 렌더링은 막지 않음
+      saveData();
     }
 
-    // 현재 선택된 연도가 없거나 삭제됐으면 가장 최신 연도로
     const years = Object.keys(data.years).map(Number).sort((a,b)=>a-b);
     if(currentYear === null || !data.years[currentYear]){
       currentYear = years[years.length-1];
@@ -522,19 +565,21 @@ function computeMonth(year, m){
 function resolveAllCarryovers(){
   const years = Object.keys(data.years).map(Number).sort((a,b)=>a-b);
   years.forEach((y, idx)=>{
-    // 같은 해 안에서: 빈 이월금을 전월 잔액으로 채움
     for(let i=1;i<12;i++){
+      const prevMonth = data.years[y].months[i];
+      const prevHasActivity = prevMonth.income.length>0 || prevMonth.expense.length>0;
       const cur = data.years[y].months[i+1];
-      if(cur.carryover === null || cur.carryover === undefined){
+      if(prevHasActivity && (cur.carryover === null || cur.carryover === undefined)){
         const prevCalc = computeMonth(y, i);
         if(prevCalc.balance !== null) cur.carryover = prevCalc.balance;
       }
     }
-    // 해가 바뀔 때: 다음 해 1월 이월금을 이번 해 12월 잔액으로 채움
     const nextYear = years[idx+1];
     if(nextYear !== undefined && data.years[nextYear]){
+      const dec = data.years[y].months[12];
+      const decHasActivity = dec.income.length>0 || dec.expense.length>0;
       const jan = data.years[nextYear].months[1];
-      if(jan.carryover === null || jan.carryover === undefined){
+      if(decHasActivity && (jan.carryover === null || jan.carryover === undefined)){
         const decCalc = computeMonth(y, 12);
         if(decCalc.balance !== null) jan.carryover = decCalc.balance;
       }
@@ -543,11 +588,14 @@ function resolveAllCarryovers(){
 }
 
 function renderAll(){
+  ensureMembers();
+  ensurePayments(currentYear);
   resolveAllCarryovers();
   document.getElementById('yearTitle').textContent = `${currentYear} 교사회비 장부`;
   renderYearNav();
   renderSummary();
   renderIndexStrip();
+  renderMemberSection();
   renderOverview();
   renderDetail();
   renderAdminBtn();
@@ -615,6 +663,84 @@ function renderIndexStrip(){
     el.onclick = ()=>{ activeMonth=m; renderAll(); document.getElementById('detail').scrollIntoView({behavior:'smooth', block:'start'}); };
     strip.appendChild(el);
   });
+}
+
+function memberPaidMonths(memberId){
+  const payments = data.years[currentYear].payments[memberId] || {};
+  return MONTHS.filter(m => payments[m]);
+}
+function memberStatusText(memberId){
+  const paid = memberPaidMonths(memberId);
+  if(paid.length === 0) return '납부 내역 없음';
+  const maxMonth = Math.max(...paid);
+  const allBefore = MONTHS.slice(0, maxMonth).every(m => paid.includes(m));
+  return allBefore ? `${maxMonth}월까지 납부완료` : `${maxMonth}월까지 납부 (중간 누락 있음)`;
+}
+
+function renderMemberSection(){
+  const box = document.getElementById('memberSection');
+  const addBtn = `<button class="add-member-btn" ${isAdmin?'':'disabled'} onclick="addMember()">+ 교사 추가</button>`;
+
+  if(!data.members.length){
+    box.innerHTML = `
+      <div class="member-head"><span>👤 교사별 회비 납부 현황</span>${addBtn}</div>
+      <div class="no-member">등록된 교사가 없어요. ${isAdmin ? '"+ 교사 추가"로 명단을 만들어보세요.' : ''}</div>`;
+    return;
+  }
+
+  const headerCols = MONTHS.map(m=>`<th>${m}월</th>`).join('');
+  const rows = data.members.map(mem=>{
+    const cells = MONTHS.map(m=>{
+      const paid = !!(data.years[currentYear].payments[mem.id] && data.years[currentYear].payments[mem.id][m]);
+      return `<td><div class="mem-check ${paid?'paid':''} ${isAdmin?'':'readonly'}" onclick="${isAdmin?`togglePayment('${mem.id}',${m})`:''}">${paid?'✓':''}</div></td>`;
+    }).join('');
+    return `
+      <tr>
+        <td class="mem-name-cell">${mem.name}${isAdmin?`<button class="mem-del" onclick="deleteMember('${mem.id}')">✕</button>`:''}</td>
+        ${cells}
+      </tr>
+      <tr class="mem-status-row"><td colspan="${MONTHS.length+1}">📌 ${memberStatusText(mem.id)}</td></tr>`;
+  }).join('');
+
+  box.innerHTML = `
+    <div class="member-head"><span>👤 교사별 회비 납부 현황</span>${addBtn}</div>
+    <div class="member-table-wrap">
+      <table class="mem">
+        <thead><tr><th class="mem-name-th">이름</th>${headerCols}</tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+}
+
+function addMember(){
+  if(!isAdmin) return;
+  const name = prompt('교사 이름을 입력하세요');
+  if(!name || !name.trim()) return;
+  ensureMembers();
+  data.members.push({ id: uid(), name: name.trim() });
+  saveData();
+  renderAll();
+}
+
+function deleteMember(id){
+  if(!isAdmin) return;
+  const mem = data.members.find(m=>m.id===id);
+  if(!mem) return;
+  if(!confirm(`"${mem.name}" 교사를 명단에서 삭제할까요?\n납부 기록도 함께 사라져요.`)) return;
+  data.members = data.members.filter(m=>m.id!==id);
+  Object.values(data.years).forEach(y=>{ if(y.payments) delete y.payments[id]; });
+  saveData();
+  renderAll();
+}
+
+function togglePayment(memberId, month){
+  if(!isAdmin) return;
+  ensurePayments(currentYear);
+  const p = data.years[currentYear].payments;
+  if(!p[memberId]) p[memberId] = {};
+  p[memberId][month] = !p[memberId][month];
+  saveData();
+  renderAll();
 }
 
 function renderOverview(){
