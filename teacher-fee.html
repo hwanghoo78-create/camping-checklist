@@ -184,6 +184,7 @@
   }
   .flow-row .k{color:var(--ink-soft); font-size:12px;}
   .flow-row .v{font-weight:600;}
+  .flow-row .v.editable{ cursor:pointer; text-decoration:underline dotted; }
   .flow-row.total .v{font-size:15px;}
   .flow-row.balance{border-bottom:none; padding-top:10px;}
   .flow-row.balance .k{font-family:'Noto Serif KR',serif; font-weight:700; color:var(--ink);}
@@ -207,6 +208,11 @@
   ul.items li .desc{flex:1; color:var(--ink);}
   ul.items li .desc .date{color:var(--ink-soft); margin-right:4px;}
   ul.items li .amt{font-weight:600; white-space:nowrap;}
+  ul.items li .edit{
+    background:none; border:none; color:var(--sage-deep); font-size:12px; cursor:pointer; padding:0 2px;
+    line-height:1;
+  }
+  ul.items li .edit:disabled{opacity:0; pointer-events:none;}
   ul.items li .del{
     background:none; border:none; color:var(--rust); font-size:14px; cursor:pointer; padding:0 2px;
     line-height:1;
@@ -230,7 +236,12 @@
   .note{
     font-size:11px; color:var(--ink-soft); background:var(--paper);
     border-left:2px solid var(--gold); padding:6px 8px; margin-top:10px; border-radius:0 6px 6px 0;
-    line-height:1.5;
+    line-height:1.5; display:flex; justify-content:space-between; align-items:flex-start; gap:8px;
+  }
+  .note .note-text{ flex:1; white-space:pre-wrap; }
+  .note .note-edit-btn{
+    background:none; border:1px solid var(--gold); color:var(--gold); border-radius:6px;
+    font-size:10px; padding:2px 7px; cursor:pointer; flex-shrink:0;
   }
 
   /* 교사별 회비 납부 현황 */
@@ -887,11 +898,13 @@ function renderDetail(){
 
   const incomeItems = md.income.map((it,idx)=>`
     <li><span class="desc">${it.desc}</span><span class="amt">${won(it.amount)}</span>
+      <button class="edit" ${isAdmin?'':'disabled'} onclick="editIncome(${m},${idx})">✎</button>
       <button class="del" ${isAdmin?'':'disabled'} onclick="deleteIncome(${m},${idx})">✕</button></li>
   `).join('') || '<div class="no-item">등록된 수입 항목이 없어요.</div>';
 
   const expenseItems = md.expense.map((it,idx)=>`
     <li><span class="desc"><span class="date">${it.date}</span>${it.desc}</span><span class="amt">${won(it.amount)}</span>
+      <button class="edit" ${isAdmin?'':'disabled'} onclick="editExpense(${m},${idx})">✎</button>
       <button class="del" ${isAdmin?'':'disabled'} onclick="deleteExpense(${m},${idx})">✕</button></li>
   `).join('') || '<div class="no-item">등록된 지출 항목이 없어요.</div>';
 
@@ -906,7 +919,7 @@ function renderDetail(){
     ${doneCount===5?'<div class="stamp">정산<br>완료</div>':''}
     <h2>${m}월 정산 <span class="yr">${currentYear}</span></h2>
 
-    <div class="flow-row"><span class="k">이월금 (전월 잔액)</span><span class="v">${won(c.carryover)}</span></div>
+    <div class="flow-row"><span class="k">이월금 (전월 잔액)</span><span class="v ${isAdmin?'editable':''}" ${isAdmin?`onclick="editCarryover(${m})"`:''}>${won(c.carryover)}</span></div>
 
     <div class="section-lbl">수입 내역 <button class="add-btn" ${isAdmin?'':'disabled'} onclick="openIncomeModal(${m})">+ 추가</button></div>
     <ul class="items">${incomeItems}</ul>
@@ -918,7 +931,10 @@ function renderDetail(){
 
     <div class="flow-row balance"><span class="k">남은금액 (익월 이월)</span><span class="v ${c.balance!==null && c.balance<0?'neg':'pos'}">${c.balance!==null?won(c.balance):'—'}</span></div>
 
-    ${md.note?`<div class="note">📌 ${md.note}</div>`:''}
+    <div class="note">
+      <span class="note-text">📌 ${md.note ? md.note : (isAdmin ? '아직 비고가 없어요.' : '')}</span>
+      ${isAdmin ? `<button class="note-edit-btn" onclick="editNote(${m})">✎ 비고 수정</button>` : ''}
+    </div>
 
     <div class="checklist">
       <div class="section-lbl">정산 체크리스트 (${doneCount}/5)</div>
@@ -1009,6 +1025,67 @@ async function deleteExpense(m, idx){
   if(!isAdmin) return;
   if(!confirm('이 지출 항목을 삭제할까요?')) return;
   data.years[currentYear].months[m].expense.splice(idx,1);
+  await saveData();
+  renderAll();
+}
+
+async function editIncome(m, idx){
+  if(!isAdmin) return;
+  const it = data.years[currentYear].months[m].income[idx];
+  const desc = prompt('수입 항목명 수정', it.desc);
+  if(desc === null) return;
+  const amtStr = prompt('금액 수정 (원)', it.amount);
+  if(amtStr === null) return;
+  const amt = parseInt(amtStr, 10);
+  if(!desc.trim() || !amt){ alert('올바르게 입력해주세요.'); return; }
+  it.desc = desc.trim();
+  it.amount = amt;
+  await saveData();
+  renderAll();
+}
+
+async function editExpense(m, idx){
+  if(!isAdmin) return;
+  const it = data.years[currentYear].months[m].expense[idx];
+  const date = prompt('날짜 수정 (예: 1/15)', it.date);
+  if(date === null) return;
+  const desc = prompt('지출 내역 수정', it.desc);
+  if(desc === null) return;
+  const amtStr = prompt('금액 수정 (원)', it.amount);
+  if(amtStr === null) return;
+  const amt = parseInt(amtStr, 10);
+  if(!desc.trim() || !amt){ alert('올바르게 입력해주세요.'); return; }
+  it.date = date.trim() || '-';
+  it.desc = desc.trim();
+  it.amount = amt;
+  await saveData();
+  renderAll();
+}
+
+async function editCarryover(m){
+  if(!isAdmin) return;
+  const md = data.years[currentYear].months[m];
+  const cur = md.carryover;
+  const valStr = prompt(`${m}월 이월금 직접 수정 (원)\n마이너스는 앞에 - 기호를 붙여주세요.\n비워두고 확인을 누르면 자동계산으로 되돌려요.`, cur===null||cur===undefined?'':cur);
+  if(valStr === null) return;
+  const trimmed = valStr.trim();
+  if(trimmed === ''){
+    md.carryover = null;
+  } else {
+    const val = parseInt(trimmed, 10);
+    if(isNaN(val)){ alert('숫자를 입력해주세요.'); return; }
+    md.carryover = val;
+  }
+  await saveData();
+  renderAll();
+}
+
+async function editNote(m){
+  if(!isAdmin) return;
+  const md = data.years[currentYear].months[m];
+  const val = prompt(`${m}월 비고 수정`, md.note || '');
+  if(val === null) return;
+  md.note = val.trim();
   await saveData();
   renderAll();
 }
