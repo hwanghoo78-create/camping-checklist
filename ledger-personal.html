@@ -13,6 +13,8 @@
     --ember:#D9713C; --ember-dark:#B85A2A;
     --income:#2E7D53; --income-bg:#E3F1E8;
     --expense:#B04A4A; --expense-bg:#F6E4E4;
+    --saving:#2E6FA8; --saving-bg:#E4EDF6;
+    --loan:#7A4FA0; --loan-bg:#EFE6F5;
   }
   *{box-sizing:border-box;}
   body{ margin:0; background:var(--canvas); font-family:'Work Sans',sans-serif; color:var(--ink); -webkit-tap-highlight-color:transparent; }
@@ -22,8 +24,8 @@
     background:repeating-linear-gradient(90deg, var(--ember) 0 14px, transparent 14px 22px); opacity:0.8; }
   .header h1{ font-family:'Fraunces',serif; font-weight:700; font-size:21px; margin:0 0 4px; }
   .header p{ margin:0; font-size:12px; opacity:0.75; display:flex; align-items:center; gap:6px; }
-  .dot{ width:8px; height:8px; border-radius:50%; background:#8a8477; display:inline-block; flex-shrink:0; }
-  .dot.live{ background:#5BC98A; box-shadow:0 0 0 0 rgba(91,201,138,0.6); animation:pulse 1.8s infinite; }
+  .dot{ width:8px; height:8px; border-radius:50%; background:#5BC98A; display:inline-block; flex-shrink:0;
+    box-shadow:0 0 0 0 rgba(91,201,138,0.6); animation:pulse 1.8s infinite; }
   @keyframes pulse{ 0%{box-shadow:0 0 0 0 rgba(91,201,138,.5);} 70%{box-shadow:0 0 0 6px rgba(91,201,138,0);} 100%{box-shadow:0 0 0 0 rgba(91,201,138,0);} }
 
   .month-nav{ display:flex; align-items:center; justify-content:center; gap:18px; margin-top:14px; }
@@ -31,38 +33,67 @@
   .month-nav button:active{ background:rgba(255,255,255,0.3); }
   .month-nav .m-label{ font-family:'Fraunces',serif; font-weight:700; font-size:16px; min-width:110px; text-align:center; }
 
-  .summary-row{ display:flex; gap:8px; padding:12px; max-width:640px; margin:0 auto; }
-  .sum-box{ flex:1; border-radius:12px; padding:11px; text-align:center; background:#fff; border:1px solid var(--canvas-line); }
+  .wrap{ padding:12px 12px 40px; max-width:640px; margin:0 auto; }
+
+  .sum-grid{ display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px; }
+  .sum-box{ border-radius:12px; padding:11px; text-align:center; background:#fff; border:1px solid var(--canvas-line); }
   .sum-box .l{ font-size:11px; color:#8a8477; margin-bottom:3px; }
   .sum-box .v{ font-size:15px; font-weight:700; font-family:'Fraunces',serif; }
   .sum-box.income-box .v{ color:var(--income); }
   .sum-box.expense-box .v{ color:var(--expense); }
+  .sum-box.saving-box .v{ color:var(--saving); }
   .sum-box.balance-box .v.positive{ color:var(--income); }
   .sum-box.balance-box .v.negative{ color:var(--expense); }
+  .loan-box{ border-radius:12px; padding:11px; text-align:center; background:#fff; border:1px solid var(--canvas-line); margin-bottom:14px; }
+  .loan-box .l{ font-size:11px; color:#8a8477; margin-bottom:3px; }
+  .loan-box .v{ font-size:17px; font-weight:700; font-family:'Fraunces',serif; color:var(--loan); }
 
-  .wrap{ padding:0 12px 100px; max-width:640px; margin:0 auto; }
+  .tab-bar{ display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-bottom:14px; }
+  .tab-bar button{ border:1.5px solid var(--canvas-line); background:#fff; border-radius:12px; padding:12px 0;
+    font-size:13.5px; font-weight:700; cursor:pointer; color:var(--ink); font-family:'Work Sans',sans-serif;
+    display:flex; flex-direction:column; align-items:center; gap:4px; }
+  .tab-bar button .tdot{ width:11px; height:11px; border-radius:50%; }
+  .tab-bar button.sel-expense{ border-color:var(--expense); background:var(--expense-bg); color:var(--expense); }
+  .tab-bar button.sel-income{ border-color:var(--income); background:var(--income-bg); color:var(--income); }
+  .tab-bar button.sel-saving{ border-color:var(--saving); background:var(--saving-bg); color:var(--saving); }
+  .tab-bar button.sel-loan{ border-color:var(--loan); background:var(--loan-bg); color:var(--loan); }
+
+  .tab-highlight{ border-radius:14px; padding:18px; text-align:center; margin-bottom:14px; }
+  .tab-highlight.expense{ background:var(--expense-bg); }
+  .tab-highlight.income{ background:var(--income-bg); }
+  .tab-highlight.saving{ background:var(--saving-bg); }
+  .tab-highlight.loan{ background:var(--loan-bg); }
+  .tab-highlight .th-l{ font-size:13px; color:#5c5748; margin-bottom:4px; }
+  .tab-highlight .th-v{ font-size:30px; font-weight:700; font-family:'Fraunces',serif; margin-bottom:4px; }
+  .tab-highlight.expense .th-v{ color:var(--expense); }
+  .tab-highlight.income .th-v{ color:var(--income); }
+  .tab-highlight.saving .th-v{ color:var(--saving); }
+  .tab-highlight.loan .th-v{ color:var(--loan); }
+  .tab-highlight .th-sub{ font-size:12px; color:#8a8477; }
 
   .cat-chips{ display:flex; gap:6px; overflow-x:auto; padding:2px 0 10px; -webkit-overflow-scrolling:touch; }
   .cat-chips::-webkit-scrollbar{ display:none; }
-  .chip{ flex:0 0 auto; padding:7px 12px; border-radius:999px; font-size:12.5px; font-weight:600; color:#fff; opacity:0.45; cursor:pointer; white-space:nowrap; }
+  .chip{ flex:0 0 auto; padding:9px 14px; border-radius:999px; font-size:13px; font-weight:700; color:#fff; opacity:0.45; cursor:pointer; white-space:nowrap; }
   .chip.sel{ opacity:1; box-shadow:0 2px 6px rgba(0,0,0,0.15); }
 
-  .type-toggle{ display:flex; border:1px solid var(--canvas-line); border-radius:9px; overflow:hidden; margin-bottom:8px; }
-  .type-toggle button{ flex:1; padding:9px 0; border:none; background:#FBFAF5; font-size:13px; font-weight:700; cursor:pointer; color:#8a8477; }
-  .type-toggle button.sel-income{ background:var(--income-bg); color:var(--income); }
-  .type-toggle button.sel-expense{ background:var(--expense-bg); color:var(--expense); }
+  .loan-toggle{ display:flex; border-radius:9px; overflow:hidden; margin-bottom:10px; border:1px solid var(--canvas-line); }
+  .loan-toggle button{ flex:1; padding:11px 0; border:none; background:#FBFAF5; font-size:13.5px; font-weight:700; cursor:pointer; color:#8a8477; }
+  .loan-toggle button.sel-borrow{ background:#FBEFE6; color:var(--ember-dark); }
+  .loan-toggle button.sel-repay{ background:var(--income-bg); color:var(--income); }
 
-  .add-card{ background:#fff; border:1px solid var(--canvas-line); border-radius:14px; padding:12px; margin-top:12px; }
+  .add-card{ background:#fff; border:1px solid var(--canvas-line); border-radius:14px; padding:14px; }
+  .add-card-title{ font-family:'Fraunces',serif; font-weight:700; font-size:15px; margin-bottom:10px; display:flex; align-items:center; gap:7px; }
+  .add-card-title .tdot{ width:11px; height:11px; border-radius:50%; }
   .add-card input[type=text], .add-card input[type=number], .add-card input[type=date]{
-    width:100%; border:1px solid var(--canvas-line); border-radius:9px; padding:9px 11px; font-size:14px;
-    font-family:'Work Sans',sans-serif; background:#FBFAF5; margin-bottom:8px;
+    width:100%; border:1px solid var(--canvas-line); border-radius:9px; padding:11px 12px; font-size:14px;
+    font-family:'Work Sans',sans-serif; background:#FBFAF5; margin-bottom:9px;
   }
-  .add-card label{ font-size:11.5px; color:#8a8477; font-weight:600; display:block; margin-bottom:3px; }
-  .field-row{ display:flex; gap:8px; }
-  .field-row > div{ flex:1; }
-  .save-btn{ width:100%; padding:11px 0; border:none; border-radius:9px; background:var(--forest); color:#fff;
-    font-weight:700; font-size:14px; cursor:pointer; font-family:'Work Sans',sans-serif; }
-  .save-btn:active{ background:#152018; }
+  .save-btn{ width:100%; padding:12px 0; border:none; border-radius:9px; color:#fff;
+    font-weight:700; font-size:14.5px; cursor:pointer; font-family:'Work Sans',sans-serif; }
+  .save-btn.expense{ background:var(--expense); }
+  .save-btn.income{ background:var(--income); }
+  .save-btn.saving{ background:var(--saving); }
+  .save-btn.loan{ background:var(--loan); }
 
   .day-group{ margin-top:16px; }
   .day-title{ font-size:12px; font-weight:700; color:#8a8477; margin-bottom:6px; padding-left:2px; }
@@ -73,33 +104,24 @@
   .entry .cat-name{ font-size:13px; font-weight:600; }
   .entry .memo{ font-size:11.5px; color:#8a8477; margin-top:1px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .entry .amt{ font-size:14.5px; font-weight:700; font-family:'Fraunces',serif; flex-shrink:0; }
-  .entry .amt.income{ color:var(--income); }
   .entry .amt.expense{ color:var(--expense); }
+  .entry .amt.income{ color:var(--income); }
+  .entry .amt.saving{ color:var(--saving); }
+  .entry .amt.loan-borrow{ color:var(--ember-dark); }
+  .entry .amt.loan-repay{ color:var(--income); }
   .entry .del{ flex-shrink:0; width:22px; height:22px; border-radius:50%; border:none; background:var(--canvas);
     color:#8a8477; font-size:13px; cursor:pointer; line-height:1; }
 
-  .empty-state{ text-align:center; padding:50px 20px; color:#8a8477; }
-  .empty-state .big{ font-size:36px; margin-bottom:8px; }
+  .empty-state{ text-align:center; padding:40px 20px; color:#8a8477; }
+  .empty-state .big{ font-size:34px; margin-bottom:8px; }
   .empty-state p{ font-size:13px; margin:0; }
-
-  .fab-add{ position:fixed; left:50%; transform:translateX(-50%); bottom:18px; max-width:640px; width:calc(100% - 24px);
-    background:var(--ember); color:#fff; border:none; border-radius:14px; padding:14px 0; font-size:15px; font-weight:700;
-    font-family:'Work Sans',sans-serif; cursor:pointer; box-shadow:0 6px 18px rgba(217,113,60,0.35); z-index:20; }
-  .fab-add:active{ background:var(--ember-dark); }
-
-  .modal-backdrop{ position:fixed; inset:0; background:rgba(31,46,35,0.45); z-index:30; display:none; }
-  .modal-backdrop.open{ display:flex; align-items:flex-end; justify-content:center; }
-  .modal-sheet{ background:var(--canvas); width:100%; max-width:640px; border-radius:18px 18px 0 0; padding:16px 14px 20px;
-    max-height:88vh; overflow-y:auto; }
-  .modal-sheet h2{ font-family:'Fraunces',serif; font-size:17px; margin:0 0 12px; }
-  .close-x{ position:absolute; right:14px; top:14px; background:none; border:none; font-size:18px; color:#8a8477; cursor:pointer; }
 </style>
 </head>
 <body>
 
 <div class="header">
   <h1>가계부</h1>
-  <p><span class="dot live" id="statusDot"></span><span id="statusText">이 기기에 저장됨</span></p>
+  <p><span class="dot"></span><span>이 기기에 저장됨</span></p>
   <div class="month-nav">
     <button id="prevMonthBtn" aria-label="이전 달">‹</button>
     <div class="m-label" id="monthLabel">2026년 9월</div>
@@ -107,52 +129,51 @@
   </div>
 </div>
 
-<div class="summary-row">
-  <div class="sum-box income-box">
-    <div class="l">수입</div>
-    <div class="v" id="incomeTotal">0원</div>
-  </div>
-  <div class="sum-box expense-box">
-    <div class="l">지출</div>
-    <div class="v" id="expenseTotal">0원</div>
-  </div>
-  <div class="sum-box balance-box">
-    <div class="l">잔액</div>
-    <div class="v" id="balanceTotal">0원</div>
-  </div>
-</div>
-
 <div class="wrap">
-  <div id="listArea"></div>
-</div>
 
-<button class="fab-add" id="openAddBtn">+ 내역 추가</button>
+  <div class="sum-grid">
+    <div class="sum-box income-box"><div class="l">이번달 수입</div><div class="v" id="mIncome">0원</div></div>
+    <div class="sum-box expense-box"><div class="l">이번달 지출</div><div class="v" id="mExpense">0원</div></div>
+    <div class="sum-box balance-box"><div class="l">잔액</div><div class="v" id="mBalance">0원</div></div>
+    <div class="sum-box saving-box"><div class="l">이번달 저축</div><div class="v" id="mSaving">0원</div></div>
+  </div>
+  <div class="loan-box">
+    <div class="l">대출 잔액</div>
+    <div class="v" id="loanBalance">0원</div>
+  </div>
 
-<div class="modal-backdrop" id="modalBackdrop">
-  <div class="modal-sheet">
-    <button class="close-x" id="closeModalBtn">✕</button>
-    <h2>내역 추가</h2>
+  <div class="tab-bar" id="tabBar">
+    <button data-tab="expense"><span class="tdot" style="background:var(--expense)"></span>지출</button>
+    <button data-tab="income"><span class="tdot" style="background:var(--income)"></span>수입</button>
+    <button data-tab="saving"><span class="tdot" style="background:var(--saving)"></span>저축</button>
+    <button data-tab="loan"><span class="tdot" style="background:var(--loan)"></span>대출</button>
+  </div>
 
-    <div class="type-toggle" id="typeToggle">
-      <button type="button" data-type="expense" class="sel-expense">지출</button>
-      <button type="button" data-type="income">수입</button>
+  <div class="tab-highlight" id="tabHighlight">
+    <div class="th-l" id="thLabel"></div>
+    <div class="th-v" id="thValue">0원</div>
+    <div class="th-sub" id="thSub"></div>
+  </div>
+
+  <div class="add-card">
+    <div class="add-card-title"><span class="tdot" id="addTitleDot"></span><span id="addTitleText">지출 추가</span></div>
+
+    <div class="loan-toggle" id="loanToggle" style="display:none;">
+      <button type="button" data-ltype="borrow" class="sel-borrow">+ 대출받음</button>
+      <button type="button" data-ltype="repay">− 상환</button>
     </div>
 
     <div class="cat-chips" id="catChips"></div>
 
-    <div class="add-card" style="margin-top:0;">
-      <label>날짜</label>
-      <input type="date" id="entryDate">
+    <input type="text" id="entryMemo" placeholder="내용 (예: 마트 장보기)">
+    <input type="number" id="entryAmount" placeholder="금액" inputmode="numeric">
+    <input type="date" id="entryDate">
 
-      <label>금액</label>
-      <input type="number" id="entryAmount" placeholder="0" inputmode="numeric">
-
-      <label>메모 (선택)</label>
-      <input type="text" id="entryMemo" placeholder="예: 점심 식사">
-
-      <button class="save-btn" id="saveEntryBtn">저장</button>
-    </div>
+    <button class="save-btn" id="saveEntryBtn">추가하기</button>
   </div>
+
+  <div id="listArea"></div>
+
 </div>
 
 <script>
@@ -163,8 +184,9 @@
   var CATS = {
     expense: [
       {id:'food', name:'식비', color:'#D9713C'},
+      {id:'cafe', name:'카페/간식', color:'#B08A4E'},
       {id:'transport', name:'교통', color:'#4C7EA8'},
-      {id:'living', name:'생활', color:'#7A6BAF'},
+      {id:'living', name:'주거/관리비', color:'#7A6BAF'},
       {id:'leisure', name:'여가', color:'#B85A8C'},
       {id:'health', name:'의료', color:'#5B9E7A'},
       {id:'etc_e', name:'기타', color:'#8a8477'}
@@ -173,20 +195,32 @@
       {id:'salary', name:'급여', color:'#2E7D53'},
       {id:'bonus', name:'부수입', color:'#3C9D6B'},
       {id:'etc_i', name:'기타', color:'#8a8477'}
+    ],
+    saving: [
+      {id:'installment', name:'적금', color:'#2E6FA8'},
+      {id:'deposit', name:'예금', color:'#5D8FC2'},
+      {id:'emergency', name:'비상금', color:'#6FA88E'},
+      {id:'invest', name:'투자', color:'#9C7FB0'},
+      {id:'etc_s', name:'기타저축', color:'#8a8477'}
+    ],
+    loan: [
+      {id:'credit', name:'신용대출', color:'#7A4FA0'},
+      {id:'mortgage', name:'담보대출', color:'#9A7BB5'},
+      {id:'student', name:'학자금대출', color:'#B58EA8'},
+      {id:'overdraft', name:'마이너스대출', color:'#8a8477'}
     ]
   };
+  var TAB_NAMES = {expense:'지출', income:'수입', saving:'저축', loan:'대출'};
 
   /* ---------- 상태 ---------- */
-  var STORAGE_KEY = 'ledger_entries_v1';
-  var STATE_KEY = 'ledger_view_state_v1';
+  var STORAGE_KEY = 'ledger_entries_v2';
+  var STATE_KEY = 'ledger_view_state_v2';
 
   var entries = loadEntries();
-
-  // 항상 day=1로만 다루는 게 핵심: setMonth로 넘길 때 31일 같은 날짜가 있으면
-  // "그 달에 없는 날짜"로 튕겨서 한 달을 건너뛰는 버그가 생기기 때문에 day를 절대 안 씀.
-  var viewDate = loadViewDate();
-  var currentType = 'expense';
+  var viewDate = loadViewDate();       // 항상 day=1로만 다뤄서 월 이동 버그 방지
+  var currentTab = 'expense';
   var currentCat = CATS.expense[0].id;
+  var currentLoanType = 'borrow';
 
   function loadEntries(){
     try{
@@ -194,9 +228,8 @@
       return raw ? JSON.parse(raw) : [];
     }catch(e){ return []; }
   }
-  function saveEntries(){
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
-  }
+  function saveEntries(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(entries)); }
+
   function loadViewDate(){
     try{
       var raw = localStorage.getItem(STATE_KEY);
@@ -214,77 +247,212 @@
     localStorage.setItem(STATE_KEY, JSON.stringify({year: viewDate.getFullYear(), month: viewDate.getMonth()}));
   }
 
-  function fmtWon(n){
-    return n.toLocaleString('ko-KR') + '원';
-  }
+  function fmtWon(n){ return Math.round(n).toLocaleString('ko-KR') + '원'; }
   function pad2(n){ return n < 10 ? '0'+n : ''+n; }
   function ymd(d){ return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate()); }
-
-  function catInfo(type, catId){
-    var list = CATS[type] || [];
+  function catInfo(tab, catId){
+    var list = CATS[tab] || [];
     for(var i=0;i<list.length;i++){ if(list[i].id === catId) return list[i]; }
     return {id:catId, name:catId, color:'#8a8477'};
   }
+  function escapeHtml(s){ var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 
-  /* ---------- 월 이동 (버그 수정 핵심) ---------- */
+  /* ---------- 월 이동 ---------- */
   var monthLabelEl = document.getElementById('monthLabel');
-
   function renderMonthLabel(){
     monthLabelEl.textContent = viewDate.getFullYear() + '년 ' + (viewDate.getMonth()+1) + '월';
   }
-
   function goPrevMonth(){
-    // 새 Date 객체를 만들어 연/월만 바꾸고 day는 항상 1로 고정
     viewDate = new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1);
-    saveViewDate();
-    renderAll();
+    saveViewDate(); renderAll();
   }
   function goNextMonth(){
     viewDate = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1);
-    saveViewDate();
-    renderAll();
+    saveViewDate(); renderAll();
   }
-
-  // 버튼에 이벤트리스너가 중복으로 붙는 것도 "한 번 눌렀는데 두 달씩 넘어가는" 흔한 원인이라
-  // addEventListener를 딱 한 번씩만 등록.
   document.getElementById('prevMonthBtn').addEventListener('click', goPrevMonth);
   document.getElementById('nextMonthBtn').addEventListener('click', goNextMonth);
 
-  /* ---------- 목록 / 합계 렌더링 ---------- */
-  var listArea = document.getElementById('listArea');
-  var incomeTotalEl = document.getElementById('incomeTotal');
-  var expenseTotalEl = document.getElementById('expenseTotal');
-  var balanceTotalEl = document.getElementById('balanceTotal');
+  /* ---------- 데이터 계산 ---------- */
+  function inMonth(e, y, m){
+    var d = new Date(e.date + 'T00:00:00');
+    return d.getFullYear() === y && d.getMonth() === m;
+  }
+  function monthEntries(y, m){ return entries.filter(function(e){ return inMonth(e, y, m); }); }
 
-  function entriesInView(){
+  function computeTopSummary(){
     var y = viewDate.getFullYear(), m = viewDate.getMonth();
-    return entries.filter(function(e){
-      var d = new Date(e.date + 'T00:00:00');
-      return d.getFullYear() === y && d.getMonth() === m;
-    });
-  }
-
-  function renderSummary(list){
-    var income = 0, expense = 0;
+    var list = monthEntries(y, m);
+    var income = 0, expense = 0, saving = 0;
     list.forEach(function(e){
-      if(e.type === 'income') income += e.amount; else expense += e.amount;
+      if(e.tab === 'income') income += e.amount;
+      else if(e.tab === 'expense') expense += e.amount;
+      else if(e.tab === 'saving') saving += e.amount;
     });
-    var balance = income - expense;
-    incomeTotalEl.textContent = fmtWon(income);
-    expenseTotalEl.textContent = fmtWon(expense);
-    balanceTotalEl.textContent = (balance < 0 ? '-' : '') + fmtWon(Math.abs(balance));
-    balanceTotalEl.className = 'v ' + (balance < 0 ? 'negative' : 'positive');
+    return {income:income, expense:expense, balance:income-expense, saving:saving};
+  }
+  function computeLoanBalance(){
+    var total = 0;
+    entries.forEach(function(e){
+      if(e.tab !== 'loan') return;
+      if(e.loanType === 'borrow') total += e.amount;
+      else total -= e.amount;
+    });
+    return total;
+  }
+  function computeTabHighlight(){
+    var y = viewDate.getFullYear(), m = viewDate.getMonth();
+    var list = monthEntries(y, m).filter(function(e){ return e.tab === currentTab; });
+
+    if(currentTab === 'loan'){
+      var borrow = 0, repay = 0;
+      list.forEach(function(e){ if(e.loanType==='borrow') borrow += e.amount; else repay += e.amount; });
+      return {
+        label: viewDate.getFullYear()+'년 '+(viewDate.getMonth()+1)+'월 대출 현황',
+        value: fmtWon(computeLoanBalance()),
+        sub: '이번달 상환 '+fmtWon(repay)+' · 이번달 대출 '+fmtWon(borrow)
+      };
+    }
+    var monthTotal = list.reduce(function(s,e){ return s+e.amount; }, 0);
+    var allTimeTotal = entries.filter(function(e){ return e.tab===currentTab; }).reduce(function(s,e){ return s+e.amount; }, 0);
+    return {
+      label: viewDate.getFullYear()+'년 '+(viewDate.getMonth()+1)+'월 누적 '+TAB_NAMES[currentTab],
+      value: fmtWon(monthTotal),
+      sub: '전체 누적 '+TAB_NAMES[currentTab]+': '+fmtWon(allTimeTotal)
+    };
   }
 
-  function renderList(list){
+  /* ---------- 렌더링 : 상단 요약 ---------- */
+  function renderTopSummary(){
+    var s = computeTopSummary();
+    document.getElementById('mIncome').textContent = fmtWon(s.income);
+    document.getElementById('mExpense').textContent = fmtWon(s.expense);
+    var balEl = document.getElementById('mBalance');
+    balEl.textContent = (s.balance<0?'-':'') + fmtWon(Math.abs(s.balance));
+    balEl.className = 'v ' + (s.balance<0?'negative':'positive');
+    document.getElementById('mSaving').textContent = fmtWon(s.saving);
+    document.getElementById('loanBalance').textContent = fmtWon(computeLoanBalance());
+  }
+
+  /* ---------- 렌더링 : 탭 바 ---------- */
+  var tabBar = document.getElementById('tabBar');
+  function renderTabBar(){
+    tabBar.querySelectorAll('button').forEach(function(btn){
+      btn.className = '';
+      if(btn.getAttribute('data-tab') === currentTab){
+        btn.className = 'sel-' + currentTab;
+      }
+    });
+  }
+  tabBar.querySelectorAll('button').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      currentTab = btn.getAttribute('data-tab');
+      currentCat = CATS[currentTab][0].id;
+      renderTabBar();
+      renderAddCard();
+      renderHighlight();
+      renderList();
+    });
+  });
+
+  /* ---------- 렌더링 : 하이라이트 카드 ---------- */
+  var tabHighlightEl = document.getElementById('tabHighlight');
+  function renderHighlight(){
+    tabHighlightEl.className = 'tab-highlight ' + currentTab;
+    var h = computeTabHighlight();
+    document.getElementById('thLabel').textContent = h.label;
+    document.getElementById('thValue').textContent = h.value;
+    document.getElementById('thSub').textContent = h.sub;
+  }
+
+  /* ---------- 렌더링 : 추가 카드 ---------- */
+  var addTitleDot = document.getElementById('addTitleDot');
+  var addTitleText = document.getElementById('addTitleText');
+  var loanToggle = document.getElementById('loanToggle');
+  var catChipsEl = document.getElementById('catChips');
+  var saveEntryBtn = document.getElementById('saveEntryBtn');
+  var tabColorVar = {expense:'var(--expense)', income:'var(--income)', saving:'var(--saving)', loan:'var(--loan)'};
+
+  function renderAddCard(){
+    addTitleDot.style.background = tabColorVar[currentTab];
+    addTitleText.textContent = TAB_NAMES[currentTab] + ' 추가';
+    loanToggle.style.display = currentTab === 'loan' ? 'flex' : 'none';
+    saveEntryBtn.className = 'save-btn ' + currentTab;
+    saveEntryBtn.textContent = '추가하기';
+    renderChips();
+  }
+  function renderChips(){
+    catChipsEl.innerHTML = '';
+    CATS[currentTab].forEach(function(cat){
+      var chip = document.createElement('div');
+      chip.className = 'chip' + (cat.id === currentCat ? ' sel' : '');
+      chip.style.background = cat.color;
+      chip.textContent = cat.name;
+      chip.addEventListener('click', function(){ currentCat = cat.id; renderChips(); });
+      catChipsEl.appendChild(chip);
+    });
+  }
+  loanToggle.querySelectorAll('button').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      currentLoanType = btn.getAttribute('data-ltype');
+      loanToggle.querySelectorAll('button').forEach(function(b){ b.classList.remove('sel-borrow','sel-repay'); });
+      btn.classList.add(currentLoanType === 'borrow' ? 'sel-borrow' : 'sel-repay');
+    });
+  });
+
+  var entryMemoEl = document.getElementById('entryMemo');
+  var entryAmountEl = document.getElementById('entryAmount');
+  var entryDateEl = document.getElementById('entryDate');
+
+  function setDefaultDate(){
+    var y = viewDate.getFullYear(), m = viewDate.getMonth();
+    var today = new Date();
+    var d = (today.getFullYear()===y && today.getMonth()===m) ? today : new Date(y, m, 1);
+    entryDateEl.value = ymd(d);
+  }
+
+  saveEntryBtn.addEventListener('click', function(){
+    var amount = parseInt(entryAmountEl.value, 10);
+    var dateVal = entryDateEl.value;
+    if(!dateVal || !amount || amount <= 0){
+      alert('날짜와 금액을 확인해주세요.');
+      return;
+    }
+    var entry = {
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2,7),
+      tab: currentTab,
+      category: currentCat,
+      amount: amount,
+      date: dateVal,
+      memo: entryMemoEl.value.trim()
+    };
+    if(currentTab === 'loan') entry.loanType = currentLoanType;
+    entries.push(entry);
+    saveEntries();
+
+    var d = new Date(dateVal + 'T00:00:00');
+    viewDate = new Date(d.getFullYear(), d.getMonth(), 1);
+    saveViewDate();
+
+    entryMemoEl.value = '';
+    entryAmountEl.value = '';
+    setDefaultDate();
+
+    renderAll();
+  });
+
+  /* ---------- 렌더링 : 목록 ---------- */
+  var listArea = document.getElementById('listArea');
+  function renderList(){
+    var y = viewDate.getFullYear(), m = viewDate.getMonth();
+    var list = monthEntries(y, m).filter(function(e){ return e.tab === currentTab; });
     listArea.innerHTML = '';
     if(list.length === 0){
-      listArea.innerHTML = '<div class="empty-state"><div class="big">🍃</div><p>이 달에는 아직 기록된 내역이 없어요</p></div>';
+      listArea.innerHTML = '<div class="empty-state"><div class="big">🍃</div><p>이번 달 '+TAB_NAMES[currentTab]+' 내역이 아직 없어요<br>위에서 추가해보세요</p></div>';
       return;
     }
     var sorted = list.slice().sort(function(a,b){ return a.date < b.date ? 1 : (a.date > b.date ? -1 : 0); });
-    var groups = {};
-    var order = [];
+    var groups = {}, order = [];
     sorted.forEach(function(e){
       if(!groups[e.date]){ groups[e.date] = []; order.push(e.date); }
       groups[e.date].push(e);
@@ -300,16 +468,19 @@
       wrap.appendChild(title);
 
       groups[dateStr].forEach(function(e){
-        var cat = catInfo(e.type, e.category);
+        var cat = catInfo(e.tab, e.category);
+        var amtClass = e.tab === 'loan' ? ('loan-'+e.loanType) : e.tab;
+        var sign = (e.tab==='expense') ? '-' : (e.tab==='loan' ? (e.loanType==='borrow'?'+':'-') : '+');
+        var label = e.tab === 'loan' ? (cat.name + (e.loanType==='borrow' ? ' · 대출' : ' · 상환')) : cat.name;
         var row = document.createElement('div');
         row.className = 'entry';
         row.innerHTML =
           '<span class="cat-dot" style="background:'+cat.color+'"></span>' +
           '<div class="info">' +
-            '<div class="cat-name">'+cat.name+'</div>' +
+            '<div class="cat-name">'+label+'</div>' +
             (e.memo ? '<div class="memo">'+escapeHtml(e.memo)+'</div>' : '') +
           '</div>' +
-          '<div class="amt '+e.type+'">'+(e.type==='expense'?'-':'+')+fmtWon(e.amount)+'</div>' +
+          '<div class="amt '+amtClass+'">'+sign+fmtWon(e.amount)+'</div>' +
           '<button class="del" data-id="'+e.id+'">✕</button>';
         wrap.appendChild(row);
       });
@@ -326,103 +497,18 @@
     });
   }
 
-  function escapeHtml(s){
-    var d = document.createElement('div');
-    d.textContent = s;
-    return d.innerHTML;
-  }
-
+  /* ---------- 전체 렌더링 ---------- */
   function renderAll(){
     renderMonthLabel();
-    var list = entriesInView();
-    renderSummary(list);
-    renderList(list);
+    renderTopSummary();
+    renderHighlight();
+    renderList();
   }
-
-  /* ---------- 추가 모달 ---------- */
-  var modalBackdrop = document.getElementById('modalBackdrop');
-  var openAddBtn = document.getElementById('openAddBtn');
-  var closeModalBtn = document.getElementById('closeModalBtn');
-  var typeToggleBtns = document.querySelectorAll('#typeToggle button');
-  var catChipsEl = document.getElementById('catChips');
-  var entryDateEl = document.getElementById('entryDate');
-  var entryAmountEl = document.getElementById('entryAmount');
-  var entryMemoEl = document.getElementById('entryMemo');
-  var saveEntryBtn = document.getElementById('saveEntryBtn');
-
-  function renderChips(){
-    catChipsEl.innerHTML = '';
-    CATS[currentType].forEach(function(cat){
-      var chip = document.createElement('div');
-      chip.className = 'chip' + (cat.id === currentCat ? ' sel' : '');
-      chip.style.background = cat.color;
-      chip.textContent = cat.name;
-      chip.addEventListener('click', function(){
-        currentCat = cat.id;
-        renderChips();
-      });
-      catChipsEl.appendChild(chip);
-    });
-  }
-
-  typeToggleBtns.forEach(function(btn){
-    btn.addEventListener('click', function(){
-      currentType = btn.getAttribute('data-type');
-      currentCat = CATS[currentType][0].id;
-      typeToggleBtns.forEach(function(b){
-        b.classList.remove('sel-income','sel-expense');
-      });
-      btn.classList.add(currentType === 'income' ? 'sel-income' : 'sel-expense');
-      renderChips();
-    });
-  });
-
-  function openModal(){
-    // 모달을 열 때는 항상 현재 보고 있는 달의 1일을 기본 날짜로 넣어줌
-    var y = viewDate.getFullYear(), m = viewDate.getMonth();
-    var today = new Date();
-    var defaultDate = (today.getFullYear() === y && today.getMonth() === m) ? today : new Date(y, m, 1);
-    entryDateEl.value = ymd(defaultDate);
-    entryAmountEl.value = '';
-    entryMemoEl.value = '';
-    modalBackdrop.classList.add('open');
-  }
-  function closeModal(){ modalBackdrop.classList.remove('open'); }
-
-  openAddBtn.addEventListener('click', openModal);
-  closeModalBtn.addEventListener('click', closeModal);
-  modalBackdrop.addEventListener('click', function(e){
-    if(e.target === modalBackdrop) closeModal();
-  });
-
-  saveEntryBtn.addEventListener('click', function(){
-    var amount = parseInt(entryAmountEl.value, 10);
-    var dateVal = entryDateEl.value;
-    if(!dateVal || !amount || amount <= 0){
-      alert('날짜와 금액을 확인해주세요.');
-      return;
-    }
-    entries.push({
-      id: Date.now().toString(36) + Math.random().toString(36).slice(2,7),
-      type: currentType,
-      category: currentCat,
-      amount: amount,
-      date: dateVal,
-      memo: entryMemoEl.value.trim()
-    });
-    saveEntries();
-
-    // 추가한 내역의 달로 화면 이동 (다른 달에 기록해도 바로 보이게)
-    var d = new Date(dateVal + 'T00:00:00');
-    viewDate = new Date(d.getFullYear(), d.getMonth(), 1);
-    saveViewDate();
-
-    closeModal();
-    renderAll();
-  });
 
   /* ---------- 초기화 ---------- */
-  renderChips();
+  renderTabBar();
+  renderAddCard();
+  setDefaultDate();
   renderAll();
 })();
 </script>
