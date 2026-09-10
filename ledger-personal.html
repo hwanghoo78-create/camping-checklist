@@ -288,6 +288,7 @@
       if(e.tab === 'income') income += e.amount;
       else if(e.tab === 'expense') expense += e.amount;
       else if(e.tab === 'saving') saving += e.amount;
+      else if(e.tab === 'loan' && e.loanType === 'repay') expense += e.amount; // 대출 상환도 지출로 집계
     });
     return {income:income, expense:expense, balance:income-expense, saving:saving};
   }
