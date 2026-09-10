@@ -73,8 +73,17 @@
 
   .cat-chips{ display:flex; gap:6px; overflow-x:auto; padding:2px 0 10px; -webkit-overflow-scrolling:touch; }
   .cat-chips::-webkit-scrollbar{ display:none; }
-  .chip{ flex:0 0 auto; padding:9px 14px; border-radius:999px; font-size:13px; font-weight:700; color:#fff; opacity:0.45; cursor:pointer; white-space:nowrap; }
+  .chip{ flex:0 0 auto; padding:9px 14px; border-radius:999px; font-size:13px; font-weight:700; color:#fff; opacity:0.45; cursor:pointer; white-space:nowrap;
+    display:flex; align-items:center; gap:6px; }
   .chip.sel{ opacity:1; box-shadow:0 2px 6px rgba(0,0,0,0.15); }
+  .chip.chip-add{ background:#fff; color:var(--ink); border:1.5px dashed var(--canvas-line); opacity:1; }
+  .chip .chip-del{ background:rgba(255,255,255,0.4); border-radius:50%; width:16px; height:16px; font-size:10px;
+    display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; }
+
+  .cat-summary{ font-size:12.5px; color:#5c5748; margin:-2px 0 10px; padding-left:2px; }
+
+  .edit-cat-btn{ margin-left:auto; background:none; border:1px solid var(--canvas-line); border-radius:999px;
+    padding:4px 10px; font-size:11.5px; color:#8a8477; cursor:pointer; font-family:'Work Sans',sans-serif; }
 
   .loan-toggle{ display:flex; border-radius:9px; overflow:hidden; margin-bottom:10px; border:1px solid var(--canvas-line); }
   .loan-toggle button{ flex:1; padding:11px 0; border:none; background:#FBFAF5; font-size:13.5px; font-weight:700; cursor:pointer; color:#8a8477; }
@@ -151,7 +160,7 @@
   </div>
 
   <div class="add-card">
-    <div class="add-card-title"><span class="tdot" id="addTitleDot"></span><span id="addTitleText">지출 추가</span></div>
+    <div class="add-card-title"><span class="tdot" id="addTitleDot"></span><span id="addTitleText">지출 추가</span><button type="button" class="edit-cat-btn" id="editCatBtn">항목 편집</button></div>
 
     <div class="loan-toggle" id="loanToggle" style="display:none;">
       <button type="button" data-ltype="borrow" class="sel-borrow">+ 대출받음</button>
@@ -159,6 +168,7 @@
     </div>
 
     <div class="cat-chips" id="catChips"></div>
+    <div class="cat-summary" id="catSummary"></div>
 
     <input type="text" id="entryMemo" placeholder="내용 (예: 마트 장보기)">
     <input type="number" id="entryAmount" placeholder="금액" inputmode="numeric">
@@ -175,8 +185,8 @@
 (function(){
   "use strict";
 
-  /* ---------- 카테고리 ---------- */
-  var CATS = {
+  /* ---------- 카테고리 (기본값) ---------- */
+  var CATS_DEFAULT = {
     expense: [
       {id:'food', name:'식비', color:'#D9713C'},
       {id:'cafe', name:'카페/간식', color:'#B08A4E'},
@@ -184,11 +194,17 @@
       {id:'living', name:'주거/관리비', color:'#7A6BAF'},
       {id:'leisure', name:'여가', color:'#B85A8C'},
       {id:'health', name:'의료', color:'#5B9E7A'},
+      {id:'insurance', name:'보험료', color:'#4E8C8C'},
+      {id:'car', name:'자동차유지비', color:'#5D7A9E'},
+      {id:'hamhaksu', name:'함학수', color:'#C97A4A'},
+      {id:'kimmyeongseon', name:'김명선', color:'#A0674C'},
+      {id:'hamjeongwon', name:'함정원', color:'#8C6E4E'},
       {id:'etc_e', name:'기타', color:'#8a8477'}
     ],
     income: [
       {id:'salary', name:'급여', color:'#2E7D53'},
       {id:'bonus', name:'부수입', color:'#3C9D6B'},
+      {id:'carryover', name:'이월금', color:'#7A8C6E'},
       {id:'etc_i', name:'기타', color:'#8a8477'}
     ],
     saving: [
@@ -205,6 +221,17 @@
       {id:'overdraft', name:'마이너스대출', color:'#8a8477'}
     ]
   };
+  var CATS_KEY = 'ledger_categories_v1';
+  function loadCats(){
+    try{
+      var raw = localStorage.getItem(CATS_KEY);
+      if(raw) return JSON.parse(raw);
+    }catch(e){}
+    return null;
+  }
+  function saveCats(){ localStorage.setItem(CATS_KEY, JSON.stringify(CATS)); }
+  var CATS = loadCats() || CATS_DEFAULT;
+  if(!localStorage.getItem(CATS_KEY)) saveCats();
   var TAB_NAMES = {expense:'지출', income:'수입', saving:'저축', loan:'대출'};
 
   /* ---------- 상태 ---------- */
@@ -274,10 +301,10 @@
     return d.getFullYear() === y && d.getMonth() === m;
   }
   function monthEntries(y, m){ return entries.filter(function(e){ return inMonth(e, y, m); }); }
-  // 지출 탭에는 일반 지출 항목 + 대출 상환 항목을 함께 포함시킨다 (대출 상환도 지출로 집계)
+  // 지출 탭에는 일반 지출 + 대출 상환 + 저축(적립)까지 함께 포함시킨다 (둘 다 지출로 집계)
   function tabEntries(list, tab){
     return list.filter(function(e){
-      if(tab === 'expense') return e.tab === 'expense' || (e.tab === 'loan' && e.loanType === 'repay');
+      if(tab === 'expense') return e.tab === 'expense' || (e.tab === 'loan' && e.loanType === 'repay') || e.tab === 'saving';
       return e.tab === tab;
     });
   }
@@ -289,7 +316,7 @@
     list.forEach(function(e){
       if(e.tab === 'income') income += e.amount;
       else if(e.tab === 'expense') expense += e.amount;
-      else if(e.tab === 'saving') saving += e.amount;
+      else if(e.tab === 'saving'){ saving += e.amount; expense += e.amount; } // 저축도 지출로 집계 (잔액에서 빠짐)
       else if(e.tab === 'loan' && e.loanType === 'repay') expense += e.amount; // 대출 상환도 지출로 집계
     });
     return {income:income, expense:expense, balance:income-expense, saving:saving};
@@ -383,16 +410,86 @@
     saveEntryBtn.textContent = '추가하기';
     renderChips();
   }
+  var editMode = false;
+  var editCatBtn = document.getElementById('editCatBtn');
+  editCatBtn.addEventListener('click', function(){
+    editMode = !editMode;
+    editCatBtn.textContent = editMode ? '편집 완료' : '항목 편집';
+    renderChips();
+  });
+
+  var PALETTE = ['#4C7EA8','#B08A4E','#7A6BAF','#B85A8C','#5B9E7A','#4E8C8C','#C97A4A','#A0674C','#8C6E4E','#2E6FA8','#6FA88E','#9C7FB0','#D9713C','#3C9D6B'];
+
+  function computeCatMonthTotal(tab, catId){
+    var y = viewDate.getFullYear(), m = viewDate.getMonth();
+    var list = tabEntries(monthEntries(y, m), tab).filter(function(e){ return e.category === catId; });
+    return list.reduce(function(s,e){ return s+e.amount; }, 0);
+  }
+  function renderCatSummary(){
+    var el = document.getElementById('catSummary');
+    if(!currentCat || editMode){ el.textContent = ''; return; }
+    var cat = catInfo(currentTab, currentCat);
+    el.textContent = cat.name + ' 이번달 누적 ' + TAB_NAMES[currentTab] + ': ' + fmtWon(computeCatMonthTotal(currentTab, currentCat));
+  }
+
   function renderChips(){
     catChipsEl.innerHTML = '';
     CATS[currentTab].forEach(function(cat){
       var chip = document.createElement('div');
       chip.className = 'chip' + (cat.id === currentCat ? ' sel' : '');
       chip.style.background = cat.color;
-      chip.textContent = cat.name;
-      chip.addEventListener('click', function(){ currentCat = cat.id; renderChips(); });
+
+      if(editMode){
+        var label = document.createElement('span');
+        label.textContent = cat.name;
+        label.addEventListener('click', function(){
+          var newName = prompt('항목 이름 수정', cat.name);
+          if(newName && newName.trim()){
+            cat.name = newName.trim();
+            saveCats();
+            renderChips();
+          }
+        });
+        var del = document.createElement('span');
+        del.className = 'chip-del';
+        del.textContent = '✕';
+        del.addEventListener('click', function(ev){
+          ev.stopPropagation();
+          if(CATS[currentTab].length <= 1){ alert('최소 1개 항목은 남아있어야 해요.'); return; }
+          if(!confirm('"'+cat.name+'" 항목을 삭제할까요?\n(이미 등록된 내역은 그대로 남아있어요)')) return;
+          CATS[currentTab] = CATS[currentTab].filter(function(c){ return c.id !== cat.id; });
+          saveCats();
+          if(currentCat === cat.id) currentCat = CATS[currentTab][0] ? CATS[currentTab][0].id : null;
+          renderChips();
+        });
+        chip.appendChild(label);
+        chip.appendChild(del);
+      } else {
+        chip.textContent = cat.name;
+        chip.addEventListener('click', function(){ currentCat = cat.id; renderChips(); });
+      }
       catChipsEl.appendChild(chip);
     });
+
+    if(editMode){
+      var addChip = document.createElement('div');
+      addChip.className = 'chip chip-add';
+      addChip.textContent = '+ 항목 추가';
+      addChip.addEventListener('click', function(){
+        var name = prompt('추가할 항목 이름을 입력하세요');
+        if(name && name.trim()){
+          var color = PALETTE[CATS[currentTab].length % PALETTE.length];
+          var id = 'c_' + Date.now().toString(36) + Math.random().toString(36).slice(2,5);
+          CATS[currentTab].push({id:id, name:name.trim(), color:color});
+          saveCats();
+          currentCat = id;
+          renderChips();
+        }
+      });
+      catChipsEl.appendChild(addChip);
+    }
+
+    renderCatSummary();
   }
   loanToggle.querySelectorAll('button').forEach(function(btn){
     btn.addEventListener('click', function(){
@@ -471,10 +568,11 @@
 
       groups[dateStr].forEach(function(e){
         var cat = catInfo(e.tab, e.category);
-        var isLoanRepayShownAsExpense = (currentTab === 'expense' && e.tab === 'loan');
+        var showAsExpense = (currentTab === 'expense' && (e.tab === 'loan' || e.tab === 'saving'));
         var amtClass, sign, label;
-        if(isLoanRepayShownAsExpense){
-          amtClass = 'expense'; sign = '-'; label = cat.name + ' 상환';
+        if(showAsExpense){
+          amtClass = 'expense'; sign = '-';
+          label = cat.name + (e.tab === 'loan' ? ' 상환' : ' 저축');
         } else if(e.tab === 'loan'){
           amtClass = 'loan-'+e.loanType;
           sign = (e.loanType==='borrow'?'+':'-');
@@ -515,6 +613,7 @@
     renderTopSummary();
     renderHighlight();
     renderList();
+    renderCatSummary();
   }
 
   /* ---------- 초기화 ---------- */
