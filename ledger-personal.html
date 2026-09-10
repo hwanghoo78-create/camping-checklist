@@ -137,11 +137,6 @@
     <div class="sum-box balance-box"><div class="l">잔액</div><div class="v" id="mBalance">0원</div></div>
     <div class="sum-box saving-box"><div class="l">이번달 저축</div><div class="v" id="mSaving">0원</div></div>
   </div>
-  <div class="loan-box">
-    <div class="l">대출 잔액</div>
-    <div class="v" id="loanBalance">0원</div>
-  </div>
-
   <div class="tab-bar" id="tabBar">
     <button data-tab="expense"><span class="tdot" style="background:var(--expense)"></span>지출</button>
     <button data-tab="income"><span class="tdot" style="background:var(--income)"></span>수입</button>
@@ -279,6 +274,13 @@
     return d.getFullYear() === y && d.getMonth() === m;
   }
   function monthEntries(y, m){ return entries.filter(function(e){ return inMonth(e, y, m); }); }
+  // 지출 탭에는 일반 지출 항목 + 대출 상환 항목을 함께 포함시킨다 (대출 상환도 지출로 집계)
+  function tabEntries(list, tab){
+    return list.filter(function(e){
+      if(tab === 'expense') return e.tab === 'expense' || (e.tab === 'loan' && e.loanType === 'repay');
+      return e.tab === tab;
+    });
+  }
 
   function computeTopSummary(){
     var y = viewDate.getFullYear(), m = viewDate.getMonth();
@@ -303,7 +305,7 @@
   }
   function computeTabHighlight(){
     var y = viewDate.getFullYear(), m = viewDate.getMonth();
-    var list = monthEntries(y, m).filter(function(e){ return e.tab === currentTab; });
+    var list = tabEntries(monthEntries(y, m), currentTab);
 
     if(currentTab === 'loan'){
       var borrow = 0, repay = 0;
@@ -315,7 +317,7 @@
       };
     }
     var monthTotal = list.reduce(function(s,e){ return s+e.amount; }, 0);
-    var allTimeTotal = entries.filter(function(e){ return e.tab===currentTab; }).reduce(function(s,e){ return s+e.amount; }, 0);
+    var allTimeTotal = tabEntries(entries, currentTab).reduce(function(s,e){ return s+e.amount; }, 0);
     return {
       label: viewDate.getFullYear()+'년 '+(viewDate.getMonth()+1)+'월 누적 '+TAB_NAMES[currentTab],
       value: fmtWon(monthTotal),
@@ -332,7 +334,6 @@
     balEl.textContent = (s.balance<0?'-':'') + fmtWon(Math.abs(s.balance));
     balEl.className = 'v ' + (s.balance<0?'negative':'positive');
     document.getElementById('mSaving').textContent = fmtWon(s.saving);
-    document.getElementById('loanBalance').textContent = fmtWon(computeLoanBalance());
   }
 
   /* ---------- 렌더링 : 탭 바 ---------- */
@@ -446,7 +447,7 @@
   var listArea = document.getElementById('listArea');
   function renderList(){
     var y = viewDate.getFullYear(), m = viewDate.getMonth();
-    var list = monthEntries(y, m).filter(function(e){ return e.tab === currentTab; });
+    var list = tabEntries(monthEntries(y, m), currentTab);
     listArea.innerHTML = '';
     if(list.length === 0){
       listArea.innerHTML = '<div class="empty-state"><div class="big">🍃</div><p>이번 달 '+TAB_NAMES[currentTab]+' 내역이 아직 없어요<br>위에서 추가해보세요</p></div>';
@@ -470,9 +471,19 @@
 
       groups[dateStr].forEach(function(e){
         var cat = catInfo(e.tab, e.category);
-        var amtClass = e.tab === 'loan' ? ('loan-'+e.loanType) : e.tab;
-        var sign = (e.tab==='expense') ? '-' : (e.tab==='loan' ? (e.loanType==='borrow'?'+':'-') : '+');
-        var label = e.tab === 'loan' ? (cat.name + (e.loanType==='borrow' ? ' · 대출' : ' · 상환')) : cat.name;
+        var isLoanRepayShownAsExpense = (currentTab === 'expense' && e.tab === 'loan');
+        var amtClass, sign, label;
+        if(isLoanRepayShownAsExpense){
+          amtClass = 'expense'; sign = '-'; label = cat.name + ' 상환';
+        } else if(e.tab === 'loan'){
+          amtClass = 'loan-'+e.loanType;
+          sign = (e.loanType==='borrow'?'+':'-');
+          label = cat.name + (e.loanType==='borrow' ? ' · 대출' : ' · 상환');
+        } else {
+          amtClass = e.tab;
+          sign = (e.tab==='expense') ? '-' : '+';
+          label = cat.name;
+        }
         var row = document.createElement('div');
         row.className = 'entry';
         row.innerHTML =
