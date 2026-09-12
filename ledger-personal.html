@@ -79,8 +79,11 @@
   .chip.chip-add{ background:#fff; color:var(--ink); border:1.5px dashed var(--canvas-line); opacity:1; }
   .chip .chip-del{ background:rgba(255,255,255,0.4); border-radius:50%; width:16px; height:16px; font-size:10px;
     display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .chip-edit-input{ background:transparent; border:none; border-bottom:1.5px solid rgba(255,255,255,0.8);
+    color:#fff; font-size:13px; font-weight:700; font-family:'Work Sans',sans-serif; padding:0; outline:none; }
 
   .cat-summary{ font-size:12.5px; color:#5c5748; margin:-2px 0 10px; padding-left:2px; }
+  .clear-filter{ color:var(--ember-dark); font-weight:700; cursor:pointer; text-decoration:underline; }
 
   .edit-cat-btn{ margin-left:auto; background:none; border:1px solid var(--canvas-line); border-radius:999px;
     padding:4px 10px; font-size:11.5px; color:#8a8477; cursor:pointer; font-family:'Work Sans',sans-serif; }
@@ -242,6 +245,7 @@
   var viewDate = loadViewDate();       // 항상 day=1로만 다뤄서 월 이동 버그 방지
   var currentTab = 'expense';
   var currentCat = CATS.expense[0].id;
+  var viewFilterCat = null; // 선택한 카테고리로 아래 목록을 필터링할 때 사용
   var currentLoanType = 'borrow';
 
   function loadEntries(){
@@ -376,7 +380,8 @@
   tabBar.querySelectorAll('button').forEach(function(btn){
     btn.addEventListener('click', function(){
       currentTab = btn.getAttribute('data-tab');
-      currentCat = CATS[currentTab][0].id;
+      currentCat = CATS[currentTab][0] ? CATS[currentTab][0].id : null;
+      viewFilterCat = null;
       renderTabBar();
       renderAddCard();
       renderHighlight();
@@ -427,9 +432,22 @@
   }
   function renderCatSummary(){
     var el = document.getElementById('catSummary');
-    if(!currentCat || editMode){ el.textContent = ''; return; }
+    if(!currentCat || editMode){ el.innerHTML = ''; return; }
     var cat = catInfo(currentTab, currentCat);
-    el.textContent = cat.name + ' 이번달 누적 ' + TAB_NAMES[currentTab] + ': ' + fmtWon(computeCatMonthTotal(currentTab, currentCat));
+    var total = computeCatMonthTotal(currentTab, currentCat);
+    var html = cat.name + ' 이번달 누적 ' + TAB_NAMES[currentTab] + ': ' + fmtWon(total);
+    if(viewFilterCat){
+      html += ' <span class="clear-filter" id="clearFilterBtn">· 전체 내역 보기</span>';
+    }
+    el.innerHTML = html;
+    var btn = document.getElementById('clearFilterBtn');
+    if(btn){
+      btn.addEventListener('click', function(){
+        viewFilterCat = null;
+        renderList();
+        renderCatSummary();
+      });
+    }
   }
 
   function renderChips(){
@@ -442,13 +460,26 @@
       if(editMode){
         var label = document.createElement('span');
         label.textContent = cat.name;
-        label.addEventListener('click', function(){
-          var newName = prompt('항목 이름 수정', cat.name);
-          if(newName && newName.trim()){
-            cat.name = newName.trim();
+        label.addEventListener('click', function(ev){
+          ev.stopPropagation();
+          var input = document.createElement('input');
+          input.type = 'text';
+          input.value = cat.name;
+          input.className = 'chip-edit-input';
+          input.size = Math.max(3, cat.name.length + 2);
+          function commit(){
+            var v = input.value.trim();
+            if(v) cat.name = v;
             saveCats();
             renderChips();
           }
+          input.addEventListener('blur', commit);
+          input.addEventListener('keydown', function(ev2){
+            if(ev2.key === 'Enter'){ ev2.preventDefault(); input.blur(); }
+          });
+          chip.replaceChild(input, label);
+          input.focus();
+          input.setSelectionRange(input.value.length, input.value.length);
         });
         var del = document.createElement('span');
         del.className = 'chip-del';
@@ -460,13 +491,19 @@
           CATS[currentTab] = CATS[currentTab].filter(function(c){ return c.id !== cat.id; });
           saveCats();
           if(currentCat === cat.id) currentCat = CATS[currentTab][0] ? CATS[currentTab][0].id : null;
+          if(viewFilterCat === cat.id) viewFilterCat = null;
           renderChips();
         });
         chip.appendChild(label);
         chip.appendChild(del);
       } else {
         chip.textContent = cat.name;
-        chip.addEventListener('click', function(){ currentCat = cat.id; renderChips(); });
+        chip.addEventListener('click', function(){
+          currentCat = cat.id;
+          viewFilterCat = cat.id;
+          renderChips();
+          renderList();
+        });
       }
       catChipsEl.appendChild(chip);
     });
@@ -545,9 +582,13 @@
   function renderList(){
     var y = viewDate.getFullYear(), m = viewDate.getMonth();
     var list = tabEntries(monthEntries(y, m), currentTab);
+    if(viewFilterCat) list = list.filter(function(e){ return e.category === viewFilterCat; });
     listArea.innerHTML = '';
     if(list.length === 0){
-      listArea.innerHTML = '<div class="empty-state"><div class="big">🍃</div><p>이번 달 '+TAB_NAMES[currentTab]+' 내역이 아직 없어요<br>위에서 추가해보세요</p></div>';
+      var emptyMsg = viewFilterCat
+        ? '이번 달 "'+catInfo(currentTab, viewFilterCat).name+'" 내역이 아직 없어요'
+        : '이번 달 '+TAB_NAMES[currentTab]+' 내역이 아직 없어요<br>위에서 추가해보세요';
+      listArea.innerHTML = '<div class="empty-state"><div class="big">🍃</div><p>'+emptyMsg+'</p></div>';
       return;
     }
     var sorted = list.slice().sort(function(a,b){ return a.date < b.date ? 1 : (a.date > b.date ? -1 : 0); });
